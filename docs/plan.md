@@ -9,47 +9,24 @@ single current execution plan.
 
 Completed sections are removed after their PR and release are finished.
 
-## 1. Adopt released Python library CI — #14
+## 1. Migrate this repository to Python library CI — #14
 
-The generic Python-library CI tool is implemented, released and externally
-tested. Use exact release 0.1.2 at commit
-`9045367540102ba2208c517e45a52ddad4bb60ea`.
+Current implementation branch uses:
 
-Initial responsibilities:
+- `tool.py.lib.ci` 0.1.2;
+- exact commit `9045367540102ba2208c517e45a52ddad4bb60ea`;
+- the same commit is green in `tool.py.lib.ci.test`.
 
-- checkout the exact library source;
-- set up the requested Python version;
-- build exactly one wheel;
-- install that wheel and declared dependencies in a clean environment;
-- run the library's complete unit-test suite against the installed wheel;
-- expose clear test/build status;
-- permit release only after green main CI.
+This step removes the old repository-level CAD-CI wrapper:
 
-Initial non-goals:
+- `cad-ci.yml`;
+- `ci/library/ci.yml`;
+- `scripts/library_ci.py`.
 
-- SCons;
-- CAD item selection;
-- CAD dependency graphs;
-- CAD build/Pages publication;
-- Forge/SolidCraft policy;
-- GitHub Actions cache.
+The complete installed-wheel test suite must pass through the released
+`tool.py.lib.ci` workflow. Release publication remains after that test job.
 
-After `tool.py.lib.ci` is tested and released:
-
-1. create/use `tool.py.lib.ci.test`;
-2. pin that exact released tool revision there;
-3. prove wheel build, clean install, pass/fail behavior and absence of
-   SCons/cache/CAD-CI state.
-
-The external test has passed. Current migration:
-
-- replace this repository's current `tool.cad.ci` workflow dependency with
-  `tool.py.lib.ci` 0.1.2;
-- delete `cad-ci.yml` and `ci/library/ci.yml`;
-- confirm CI logs contain no SCons and no `actions/cache`;
-- run this library's complete installed-wheel suite through the released
-  `tool.py.lib.ci`;
-- remove this section when #14 is complete.
+Remove this section and close #14 after the new package-test path is green.
 
 ## 2. Complete reusable mesh geometry verification — #7
 
@@ -143,7 +120,7 @@ Forge-specific migration remains tracked in
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #14 Create and adopt tool.py.lib.ci for Python library CI | now | First task. The tool is released; complete its external test, then migrate this repository off CAD-CI/SCons. |
+| #14 Create and adopt tool.py.lib.ci for Python library CI | now | The repository is being migrated to tested tool.py.lib.ci 0.1.2; the old CAD-CI wrapper is removed on the current branch. |
 | #7 Add reusable geometry and independent-reference verification primitives | blocked / next | PR #12 exists and is green, but merge/release waits for #14 so it is verified through the correct Python-library CI path. |
 | #8 Add reusable numeric and measured-body comparison primitives | next after #7 | Required reusable comparison layer for Forge verification. |
 | #9 Add reusable visual regression and expected-shape overlay primitives | next after #8 | Required to restore Forge visual/baseline/goal evidence without Forge-specific generic code. |
