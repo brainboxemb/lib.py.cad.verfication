@@ -9,11 +9,11 @@ package uses the normal spelling: `cad_verification`.
 
 ## Purpose
 
-This library provides reusable verification mechanics that are useful across
-CAD consumers without becoming a second CI system.
+This library provides reusable verification mechanics for CAD repositories
+without becoming a CI runner.
 
-`tool.cad.ci` remains the only CI runner. A consumer can call this library
-from a normal CAD-CI step such as `model_verify`.
+CAD repositories can call this library from normal `tool.cad.ci` steps such
+as `model_verify`.
 
 ## Responsibilities
 
@@ -26,7 +26,7 @@ The library owns:
 - safe execution of external CAD commands with explicit timeout/failure types;
 - a stable JSON verification report.
 
-Consumers own:
+CAD repositories own:
 
 - which checks a model requires;
 - CAD-engine-specific commands and adapters;
@@ -58,7 +58,7 @@ from cad_verification import (
 )
 ~~~
 
-The first consumer will be Forge, but this repository must remain independent
+The first repository using this library will be Forge, but this library remains independent
 of Forge and SolidCraft.
 
 
