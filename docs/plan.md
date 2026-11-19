@@ -13,48 +13,37 @@ Released reusable verification layers:
 - 0.2.0 — mesh geometry verification (#7);
 - 0.3.0 — numeric and measured-body comparison (#8);
 - 0.4.0 — visual regression and expected-shape primitives (#9);
-- 0.5.0 — semantic result composition (#10).
+- 0.5.0 — semantic result composition (#10);
+- 0.6.0 — generic single-view visual verification orchestration (#26).
 
-The Forge #378 ownership audit found one generic visual mechanic still missing:
-single-view orchestration that combines the already released visual primitives.
-That work is #26.
+Release 0.6.0 is published at exact commit
+`649d22cbcd828952f903b7ed29e6b63b41654c38`.
 
 Repository CI uses the externally tested `tool.py.lib.ci` path. Do not
 reintroduce CAD-CI/SCons package-test infrastructure here.
 
-## Current work: reusable visual view verification — #26
+## Current work: final migration audit — #4
 
-Implement one engine-neutral function for one already-rendered visual view.
+No additional reusable implementation is currently known to be missing.
 
-Execution order:
+Forge #378 is still consuming the released library APIs and removing generic
+verification mechanics that remained in consumer code.
 
-1. define observable behavior in requirements and exact semantics in design;
-2. add direct tests for pass, mismatch, missing baseline and expected-shape
-   evidence;
-3. implement the function only from existing generic visual primitives;
-4. export and document the public API;
-5. release 0.6.0 after library CI is green;
-6. only then resume Forge #430 against the exact released library revision.
+The current audit chain is:
 
-## Final migration audit — #4
-
-#4 remains open until Forge #378 is complete.
-
-After #26 is released and Forge consumes it, continue the final audit:
-
-1. confirm generic numeric/bounds comparison math is no longer duplicated in
-   Forge model verifiers;
-2. confirm reference selection/render adapters remain consumer-owned;
-3. confirm visual rendering/camera/view/baseline policy remains consumer-owned;
-4. confirm no reusable verification mechanics remain stranded in Forge;
-5. close #4 only after #378 completes and the ownership map passes.
+1. Forge #432 replaces duplicated numeric/vector/bounds comparison math with the
+   released 0.3.0+ APIs;
+2. Forge updates its immutable runtime to library 0.6.0;
+3. Forge #430 resumes visual verification using released
+   `verify_visual_view()`;
+4. Forge completes the remaining visual/diagram/summary migration;
+5. return here for the final ownership-map audit.
 
 ## Open issue assessment — 2026-11-19
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #26 Add generic single-view visual verification orchestration | now | Missing reusable mechanic discovered by Forge #430. Must be designed, directly tested and released before Forge visual work resumes. |
-| #4 Expand reusable CAD verification mechanics beyond the foundation | blocked on #26 and Forge #378 / final audit | Existing #7/#8/#9/#10 releases cover the original primitives. #26 fills one orchestration gap found during consumer adoption; final closure still depends on Forge #378. |
+| #4 Expand reusable CAD verification mechanics beyond the foundation | blocked on Forge #378 / final audit | #7/#8/#9/#10/#26 are implemented, directly tested and released. Closure now depends on Forge consuming the APIs and proving no reusable mechanics remain stranded there. |
 
 Immediate execution chain:
-`verification-library #26 -> release 0.6.0 -> Forge #430 -> Forge #432 boundary cleanup -> Forge #378 remainder -> verification-library #4 final audit`.
+`Forge #432 -> Forge runtime 0.6.0 -> Forge #430 -> Forge #378 remainder -> verification-library #4 final audit -> Forge #366`.
