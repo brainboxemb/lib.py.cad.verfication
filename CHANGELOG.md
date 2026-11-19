@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0
+
+- add declarative `SolidCraftVerification` model verification;
+- add declarative saved-design mutations and read-only inspections;
+- add `run_solidcraft_verification()` as the reusable baseline/mutation/inspection runner;
+- keep the initial native SolidCraft model as consumer-produced input;
+- centralize SolidCraft evaluation, mutation, inspection, artifacts and verification report construction;
+- remove any need for a model-owned verification CLI;
+- keep Forge/SCPF, CAD-CI, SCons and repository selection outside the library.
+
+
 ## 0.8.0
 
 - add the first CAD-tool-specific verification adapter for SolidCraft;
