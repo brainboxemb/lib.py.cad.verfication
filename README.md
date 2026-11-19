@@ -2,7 +2,7 @@
 
 Reusable Python library for CAD/model verification.
 
-Current release candidate: **0.4.0**.
+Current release candidate: **0.5.0**.
 
 The repository name keeps the existing `verfication` spelling. The Python
 package uses the normal spelling: `cad_verification`.
@@ -173,6 +173,30 @@ overlay = make_overlay_image(
 Consumers own view selection, camera values, approved baselines and expected
 model geometry. The library owns only generic image comparison, projection,
 drawing and evidence.
+
+
+## Semantic result composition
+
+Already-produced verification evidence can be composed without rerunning CAD
+work:
+
+~~~python
+from cad_verification import (
+    SemanticCheck,
+    compose_semantic_result,
+    require_semantic_pass,
+)
+
+result = compose_semantic_result((
+    SemanticCheck("primary", "pass", required=True),
+    SemanticCheck("optional_check", "skipped", required=False),
+))
+require_semantic_pass(result)
+~~~
+
+The consumer owns check names and which checks are required. The library owns
+only generic status validation, precedence, evidence preservation and
+aggregation.
 
 
 ## Repository CI
