@@ -29,6 +29,21 @@ Forge, SolidCraft, OpenSCAD and other consumers own their engine adapters,
 commands, expectations and fixtures. Generic execution/result/artifact
 mechanics belong here.
 
+## Repository plan
+
+Current unfinished repository work lives in `docs/plan.md`.
+
+Rules:
+
+- keep one general repository plan, not separate CI/verification/release plans;
+- the plan contains only unfinished work;
+- remove a completed section after its PR/release is finished;
+- permanent behaviour belongs in `docs/requirements.md` and
+  `docs/design.md`;
+- issues provide detailed discussion/history, but the current execution order
+  must be readable from `docs/plan.md`;
+- when no planned work remains, `docs/plan.md` may be removed.
+
 ## Development process
 
 Before changing behaviour:
