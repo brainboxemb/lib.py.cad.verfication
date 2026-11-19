@@ -28,6 +28,7 @@ from .errors import (
     CommandTimedOut,
     MeshLoadError,
     SemanticResultError,
+    SolidCraftEvidenceError,
     VerificationConfigError,
     VerificationError,
     VerificationFailure,
