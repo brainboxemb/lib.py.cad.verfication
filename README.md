@@ -2,7 +2,7 @@
 
 Reusable Python library for CAD/model verification.
 
-Current release: **0.1.0**.
+Current release candidate: **0.2.0**.
 
 The repository name keeps the existing `verfication` spelling. The Python
 package uses the normal spelling: `cad_verification`.
@@ -62,13 +62,40 @@ The first consumer will be Forge, but this repository must remain independent
 of Forge and SolidCraft.
 
 
-## Repository CI
+## Geometry verification
 
-This repository is an ordinary Python library. Its own package build/test
-workflow uses `tool.py.lib.ci` 0.1.2 at exact commit
-`9045367540102ba2208c517e45a52ddad4bb60ea`, after that revision passed the
-external `tool.py.lib.ci.test` repository.
+The library can validate an already-exported STL against a consumer-owned
+geometry contract:
 
-This does not change how downstream CAD repositories use the library:
-`tool.cad.ci` remains the CAD repository runner, while this package only
-provides reusable verification functions.
+~~~python
+from pathlib import Path
+
+from cad_verification import (
+    GeometryContract,
+    SurfaceDistanceProbe,
+    validate_mesh_geometry,
+)
+
+contract = GeometryContract(
+    bounds_min=(-5.0, -10.0, -15.0),
+    bounds_max=(5.0, 10.0, 15.0),
+    bounds_tolerance_mm=0.01,
+    volume_mm3=6000.0,
+    volume_tolerance_mm3=0.5,
+    watertight=True,
+    surface_distance_probes=(
+        SurfaceDistanceProbe(
+            "outside-x",
+            (10.0, 0.0, 0.0),
+            5.0,
+            0.01,
+        ),
+    ),
+)
+
+evidence = validate_mesh_geometry(Path("reference.stl"), contract)
+~~~
+
+A geometry mismatch raises `VerificationFailure`. Missing or unreadable mesh
+data raises `MeshLoadError`. Model-specific expected geometry remains in the
+consumer repository.
