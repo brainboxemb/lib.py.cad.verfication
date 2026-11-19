@@ -203,6 +203,33 @@ approves a baseline. A missing baseline is reported explicitly; a regression
 mismatch raises `VerificationFailure` with complete `VisualViewEvidence`.
 
 
+## Exact and predicate requirements
+
+Generic model assertions can preserve stable expected/actual evidence without
+putting the failure mechanic in consumer code:
+
+~~~python
+from cad_verification import require_condition, require_equal
+
+require_equal(
+    {"type": "BoxFeature", "warning": None},
+    timeline_row,
+    label="native timeline row",
+)
+
+require_condition(
+    feature_count == 4,
+    expected=4,
+    actual=feature_count,
+    label="native feature count",
+)
+~~~
+
+These helpers do no CAD interpretation. Consumers own the values and condition;
+the library only validates evidence and raises `VerificationFailure`
+consistently.
+
+
 ## Semantic result composition
 
 Already-produced verification evidence can be composed without rerunning CAD

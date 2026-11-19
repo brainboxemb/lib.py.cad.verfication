@@ -427,7 +427,39 @@ logic.
 
 This work is tracked by issue #10.
 
-## 18. Migration completeness
+## 18. Exact-value and predicate verification
+
+The library provides two generic requirements for model-specific checks:
+
+```python
+require_equal(expected, actual, *, label=None)
+require_condition(condition, *, expected, actual, label=None)
+```
+
+`require_equal()`:
+- performs exact Python equality with no numeric tolerance or coercion;
+- accepts JSON-compatible expected and actual evidence;
+- returns deterministic evidence containing label, expected, actual and pass;
+- raises `VerificationFailure` with the same evidence when values differ.
+
+`require_condition()`:
+- accepts only an actual `bool` condition;
+- accepts caller-supplied JSON-compatible expected and actual evidence;
+- returns the same deterministic evidence shape on true;
+- raises `VerificationFailure` with that evidence on false.
+
+For both helpers:
+- label is optional descriptive evidence;
+- invalid/non-JSON evidence is a `VerificationConfigError`;
+- model semantics remain consumer-owned;
+- no CAD engine, repository, workflow or publication behavior is allowed.
+
+Tests must prove exact nested equality, mismatch evidence, true/false predicate
+behavior, invalid condition types, invalid evidence and deterministic output.
+
+This work is tracked by issue #29.
+
+## 19. Migration completeness
 
 Issue #4 is the migration inventory.
 
@@ -437,6 +469,7 @@ The old Forge qualification stack is split as follows:
 - generic STL/mesh validation -> section 15 / issue #7;
 - generic visual comparison/projection/overlay -> section 16 / issue #9;
 - generic semantic result composition -> section 17 / issue #10;
+- generic exact-value/predicate failure evidence -> section 18 / issue #29;
 - model-specific geometry, mutations, cameras, baselines and expected shapes
   remain consumer-owned;
 - reference-CAD execution remains consumer-owned;

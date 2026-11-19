@@ -19,31 +19,44 @@ Released reusable verification layers:
 Release 0.6.0 is published at exact commit
 `649d22cbcd828952f903b7ed29e6b63b41654c38`.
 
-Repository CI uses the externally tested `tool.py.lib.ci` path. Do not
-reintroduce CAD-CI/SCons package-test infrastructure here.
+The continuing Forge #378 ownership audit found one additional generic helper
+pair repeated across the consumer model verifiers. That work is #29.
 
-## Current work: final migration audit — #4
+## Current work: exact-value and predicate requirements — #29
 
-No additional reusable implementation is currently known to be missing.
+Implement two engine-neutral helpers:
 
-Forge #378 is still consuming the released library APIs and removing generic
-verification mechanics that remained in consumer code.
+- exact expected/actual equality;
+- one explicit boolean condition with caller-supplied expected/actual evidence.
 
-The current audit chain is:
+Execution order:
 
-1. Forge #432 replaces duplicated numeric/vector/bounds comparison math with the
-   released 0.3.0+ APIs;
-2. Forge updates its immutable runtime to library 0.6.0;
-3. Forge #430 resumes visual verification using released
-   `verify_visual_view()`;
-4. Forge completes the remaining visual/diagram/summary migration;
+1. define stable evidence and failure semantics in requirements/design;
+2. add direct built-wheel tests;
+3. implement/export/document the helpers;
+4. release 0.7.0 only after library CI is green;
+5. update Forge #432 to consume the released helpers and remove its local
+   `require_equal` / `require_true` copies;
+6. update the immutable Forge runtime once to the final audit library release.
+
+## Final migration audit — #4
+
+#4 remains open while Forge #378 consumes released library APIs.
+
+After #29 is released and consumed:
+
+1. finish Forge #432;
+2. update Forge runtime to the new library release;
+3. resume Forge #430 visual verification;
+4. complete visual/diagram/summary migration;
 5. return here for the final ownership-map audit.
 
 ## Open issue assessment — 2026-11-19
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #4 Expand reusable CAD verification mechanics beyond the foundation | blocked on Forge #378 / final audit | #7/#8/#9/#10/#26 are implemented, directly tested and released. Closure now depends on Forge consuming the APIs and proving no reusable mechanics remain stranded there. |
+| #29 Add generic exact-value and predicate verification helpers | now | Generic failure/evidence mechanics are still duplicated in all Forge model verifiers. Implement, test and release before #432 closes. |
+| #4 Expand reusable CAD verification mechanics beyond the foundation | blocked on #29 and Forge #378 / final audit | #7/#8/#9/#10/#26 are released. Final closure depends on #29 plus complete Forge consumption and ownership audit. |
 
 Immediate execution chain:
-`Forge #432 -> Forge runtime 0.6.0 -> Forge #430 -> Forge #378 remainder -> verification-library #4 final audit -> Forge #366`.
+`verification-library #29 -> Forge #432 -> Forge runtime update -> Forge #430 -> Forge #378 remainder -> verification-library #4 final audit -> Forge #366`.

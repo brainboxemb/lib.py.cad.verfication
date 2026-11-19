@@ -805,3 +805,72 @@ The module contains no consumer-domain check names and no CAD-CI, publication,
 materialization or repository-state behavior.
 
 Tests cover issue #10 R1-R8 through the installed wheel.
+
+
+## 17. Exact-value and predicate verification
+
+### 17.1 Module
+
+Add one engine-neutral module:
+
+```text
+cad_verification/
+  assertions.py
+```
+
+It contains only generic expected/actual evidence and failure mechanics.
+
+### 17.2 Public API
+
+Expose:
+
+```python
+require_equal(expected, actual, *, label=None)
+require_condition(condition, *, expected, actual, label=None)
+```
+
+Both return a JSON-compatible evidence object:
+
+```json
+{
+  "label": "optional label or null",
+  "expected": "...caller value...",
+  "actual": "...caller value...",
+  "pass": true
+}
+```
+
+On failure the same object is attached to `VerificationFailure` with
+`pass=false`.
+
+### 17.3 Equality semantics
+
+`require_equal()` performs exactly `actual == expected`. It does not
+normalize numbers, apply tolerance, reorder collections or interpret CAD data.
+Consumers use numeric comparison APIs when tolerance is required.
+
+### 17.4 Predicate semantics
+
+`require_condition()` requires `condition` to be exactly `bool`.
+Truthiness of numbers, strings, containers or custom objects is rejected.
+
+The consumer constructs the condition from model/domain semantics and supplies
+the expected/actual evidence. The library does not inspect or understand that
+semantic meaning.
+
+### 17.5 Validation
+
+Expected and actual values must serialize through deterministic
+`json.dumps(..., sort_keys=True)`. Labels are `str | None`; empty strings
+are allowed as literal descriptive values and are not interpreted.
+
+Invalid inputs raise `VerificationConfigError`. A normal false result raises
+`VerificationFailure`.
+
+### 17.6 Boundary
+
+The module must not import CAD libraries, Forge, SolidCraft, repository state,
+CI code or publication code. It does not replace toleranced comparison helpers
+or semantic-result composition.
+
+Direct built-wheel tests cover issue #29.
