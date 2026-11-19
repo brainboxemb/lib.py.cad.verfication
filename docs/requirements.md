@@ -48,8 +48,9 @@ One verification request contains:
 - optional JSON-compatible metadata;
 - an ordered list of checks.
 
-The caller explicitly invokes the request. The library performs no repository
-discovery or changed-file selection.
+The caller explicitly invokes the request. The request must contain at least one
+check; an empty verification is invalid and may never produce a passing report.
+The library performs no repository discovery or changed-file selection.
 
 ## 4. Checks
 
