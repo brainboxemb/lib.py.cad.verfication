@@ -99,3 +99,15 @@ evidence = validate_mesh_geometry(Path("reference.stl"), contract)
 A geometry mismatch raises `VerificationFailure`. Missing or unreadable mesh
 data raises `MeshLoadError`. Model-specific expected geometry remains in the
 consumer repository.
+
+
+## Repository CI
+
+This repository is an ordinary Python library. Its own package build/test
+workflow uses `tool.py.lib.ci` 0.1.2 at exact commit
+`9045367540102ba2208c517e45a52ddad4bb60ea`, after that revision passed the
+external `tool.py.lib.ci.test` repository.
+
+This does not change how downstream CAD repositories use the library:
+`tool.cad.ci` remains the CAD repository runner, while this package only
+provides reusable verification functions.
