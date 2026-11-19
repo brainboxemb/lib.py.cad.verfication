@@ -289,3 +289,119 @@ variables to construct `VerificationContext`.
 8. only then consume from Forge.
 
 Do not migrate Forge code into this repository before steps 1-7 are complete.
+
+
+## 13. Geometry verification
+
+### 13.1 Module
+
+Add one module:
+
+```text
+cad_verification/
+  geometry.py
+```
+
+It owns only generic mesh geometry verification.
+
+### 13.2 Public immutable types
+
+`geometry.py` defines frozen dataclasses:
+
+```python
+SurfaceDistanceProbe
+GeometryContract
+```
+
+Their `__post_init__` methods normalize numeric vectors to float tuples and
+raise `VerificationConfigError` for invalid configuration.
+
+### 13.3 Mesh library
+
+Use `trimesh>=4,<5` and `scipy>=1.12,<2` as explicit package dependencies. `scipy` is required by trimesh's validated topology-processing path used by the watertightness check.
+
+`validate_mesh_geometry()` loads the supplied STL with trimesh.
+
+If trimesh returns a Scene, concatenate measurable geometries into one mesh.
+
+Reject:
+
+- missing paths;
+- empty files;
+- load/parse failures;
+- geometries without vertices or faces.
+
+Those cases raise `MeshLoadError`, which derives from
+`VerificationError`.
+
+### 13.4 Measurements
+
+The validator computes one evidence dictionary in deterministic insertion order.
+
+Bounds:
+
+- use mesh bounds directly;
+- compare each min/max coordinate with the configured tolerance.
+
+Volume:
+
+- use absolute mesh volume;
+- only evaluate when configured.
+
+Watertightness:
+
+- evaluate `is_watertight` on a copy of the mesh;
+- do not mutate the mesh used for other measurements.
+
+Surface probes:
+
+- use trimesh nearest-surface calculation without consumer-specific policy;
+- preserve contract probe order.
+
+Contract sufficiency:
+
+- `bounds_sufficient=True` allows a bounds-only contract;
+- `bounds_sufficient=False` requires volume or at least one surface probe;
+- this preserves the historical rule that internal-feature cases cannot pass
+  solely because their outer envelope matches.
+
+### 13.5 Mismatch handling
+
+Do not raise on the first geometry mismatch.
+
+Evaluate every configured geometry check, store all evidence, then raise one
+`VerificationFailure` if any check failed.
+
+This preserves passing evidence when a later check fails.
+
+### 13.6 Existing verification integration
+
+No changes to `verify()` semantics are required.
+
+- `VerificationFailure` is already recorded as `fail`;
+- `MeshLoadError` is an ordinary unexpected `VerificationError` and is
+  recorded as `error`.
+
+### 13.7 Public exports
+
+Export from `cad_verification.__init__`:
+
+```python
+GeometryContract
+SurfaceDistanceProbe
+validate_mesh_geometry
+MeshLoadError
+```
+
+### 13.8 Test construction
+
+`tests/test_geometry.py` generates small mesh fixtures using trimesh.
+
+The canonical fixture is a centered 10 x 20 x 30 mm box.
+
+An open-box fixture removes one face from the generated mesh.
+
+A disconnected multi-part fixture combines two generated boxes before STL
+export.
+
+Tests run through the built wheel using the existing library CI path.
