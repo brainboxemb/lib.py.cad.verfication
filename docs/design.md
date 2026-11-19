@@ -240,9 +240,13 @@ Non-zero exit raises `CommandFailed`.
 
 Timeout raises `CommandTimedOut`.
 
-## 10. Consumer adapter boundary
+## 10. CAD-engine verification boundary
 
-A consumer check may call an engine directly:
+The verification library may provide an engine-specific adapter that calls or
+reads a CAD engine when that behavior is part of reusable verification.
+
+A consumer may still supply the engine input and model-specific expectation
+data. For example:
 
 ~~~python
 def build_check(ctx):
@@ -255,10 +259,17 @@ def build_check(ctx):
     )
 ~~~
 
-The literal SolidCraft command belongs in Forge, not in this library.
+Shared SolidCraft inspection/parsing/checking behavior belongs in this library.
 
-Likewise geometry expectations such as body counts, bounds and parameter
-values stay in Forge.
+Geometry expectations such as body counts, bounds, parameter values, mutation
+targets and required views stay with the model in Forge and are passed into the
+library as data.
+
+The boundary is therefore:
+
+- Forge knows **what this model should be**;
+- this library knows **how to prove that against SolidCraft**;
+- neither side duplicates the other's responsibility.
 
 ## 11. Relationship with CAD-CI
 
@@ -417,8 +428,11 @@ cad_verification/
   comparison.py
 ```
 
-The module accepts only Python numeric values, vectors and normalized body
-envelopes. It must not import trimesh, SolidCraft, Forge or another CAD library.
+The generic comparison module accepts only Python numeric values, vectors and
+normalized body envelopes. It remains independent of SolidCraft and Forge.
+
+Engine-specific modules may depend on the public generic comparison API, but
+must not embed Forge model knowledge.
 
 ### 14.2 BodyEnvelope
 
