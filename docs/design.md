@@ -1042,3 +1042,166 @@ Direct built-wheel tests prove:
 - named-body selection requires exactly one match;
 - command argv for evaluate/mutate/inspect is exact;
 - the adapter imports no Forge/SCPF, SCons or CAD-CI implementation.
+
+
+## 19. Declarative SolidCraft verification runner
+
+### 19.1 Location
+
+The orchestration remains part of the SolidCraft adapter package:
+
+```text
+cad_verification/
+  adapters/
+    solidcraft.py
+```
+
+It composes the already released adapter functions and the generic
+`VerificationContext` / `VerificationCheck` / `verify()` mechanism. It
+does not introduce a second verification framework.
+
+### 19.2 Public definitions
+
+Expose frozen dataclasses:
+
+```python
+SolidCraftSavedDesign(
+    id,
+    command_path,
+    expectation,
+)
+
+SolidCraftInspection(
+    id,
+    command_path,
+    expected=None,
+)
+
+SolidCraftVerification(
+    verification_id,
+    baseline,
+    saved_designs=(),
+    inspections=(),
+    metadata={},
+)
+```
+
+IDs use the existing verification identifier grammar. Duplicate saved-design
+or inspection IDs are rejected. The generated check IDs are:
+
+- `baseline`;
+- `saved_design_<id>`;
+- `inspection_<id>`.
+
+The two generated namespaces are independent.
+
+### 19.3 Output layout
+
+Given `output_dir`, the runner owns:
+
+```text
+<output_dir>/
+  baseline/
+    measurements.json
+  saved_designs/
+    <id>/
+      model.sc
+      measurements.json
+  inspections/
+    <id>/
+      results.json
+  verification.json
+```
+
+All produced paths are therefore valid normal verification artifacts.
+
+### 19.4 Baseline check
+
+The baseline check calls:
+
+```python
+evaluate_solidcraft_model(model_path, baseline/measurements.json)
+verify_solidcraft_measurements(measurements, definition.baseline)
+```
+
+It returns one passing `CheckOutcome` with the expectation evidence and
+measurement artifact.
+
+### 19.5 Saved-design checks
+
+Each saved-design check captures only immutable definition data.
+
+It calls:
+
+```python
+mutate_solidcraft_model(
+    original_model,
+    command_path,
+    saved_designs/<id>/model.sc,
+)
+evaluate_solidcraft_model(
+    saved_model,
+    saved_designs/<id>/measurements.json,
+)
+verify_solidcraft_measurements(measurements, expectation)
+```
+
+The changed model and measurements are artifacts.
+
+Every saved-design check starts from the original model path. A previous
+mutation is never an implicit input to the next mutation.
+
+### 19.6 Inspection checks
+
+Each inspection check calls:
+
+```python
+inspect_solidcraft_model(
+    original_model,
+    command_path,
+    inspections/<id>/results.json,
+)
+```
+
+When `expected` is not `None`, it compares the returned JSON value with
+`require_equal(expected, actual, label=...)`.
+
+The result JSON is always an artifact.
+
+### 19.7 Runner
+
+`run_solidcraft_verification(model_path, output_dir, definition)` normalizes
+the two paths, builds `VerificationContext` with the supplied model as
+`input_path`, creates the ordered checks, and delegates execution/reporting to
+`verify()`.
+
+Check order is:
+
+1. baseline;
+2. saved designs in declared order;
+3. inspections in declared order.
+
+The runner itself contains no Forge/SCPF or CAD-CI behavior.
+
+### 19.8 Consumer shape
+
+A normal consumer model should need only a small definition module, for
+example:
+
+```python
+VERIFICATION = SolidCraftVerification(
+    verification_id="simple-box",
+    baseline=SolidCraftModelExpectation(...),
+    saved_designs=(
+        SolidCraftSavedDesign(
+            id="length_50",
+            command_path=...,
+            expectation=SolidCraftModelExpectation(...),
+        ),
+    ),
+)
+```
+
+The consumer-specific launcher may produce the initial `.sc` model and then
+call the runner. It must not copy the baseline/mutation/inspection execution
+logic.
