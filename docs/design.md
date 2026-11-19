@@ -648,3 +648,88 @@ engine. It owns no required-view list, model camera, baseline or expected
 geometry fixture.
 
 Tests cover issue #9 R1-R10 through the installed wheel.
+
+## 16. Semantic result composition
+
+### 16.1 Module
+
+Add one execution-free module:
+
+```text
+cad_verification/
+  semantic.py
+```
+
+It composes consumer-supplied records and existing report data. It does not
+execute checks, read repository state or move artifacts.
+
+### 16.2 SemanticCheck
+
+Expose frozen `SemanticCheck` with:
+
+- `name`;
+- `status`;
+- `required`;
+- optional `reason`;
+- JSON-compatible `evidence`.
+
+Names use the same lowercase engineering identifier rule as verification IDs.
+Allowed statuses are:
+
+`pass`, `fail`, `error`, `missing`, `review`, `blocked`,
+`not-required`, `skipped`.
+
+### 16.3 Composition
+
+`compose_semantic_result(checks)` preserves supplied order and returns:
+
+- overall `status`;
+- ordered check records.
+
+Only required checks determine overall status. Precedence is:
+
+1. `error`;
+2. `fail`;
+3. `missing` -> overall `incomplete`;
+4. `review`;
+5. `blocked`;
+6. otherwise `pass`.
+
+Optional checks remain evidence but never lower the overall status.
+
+### 16.4 Pass requirement
+
+`require_semantic_pass(result)` accepts only a composed `pass` result.
+Every other overall status raises `SemanticResultError`, a
+`VerificationFailure` subclass carrying the complete semantic result as
+evidence.
+
+### 16.5 Aggregate
+
+`compose_item_results(items)` accepts an ordered sequence of
+`(item_id, semantic_result)` pairs. It does no work beyond validation and
+composition.
+
+Aggregate overall precedence is `error`, `fail`, `incomplete`, `review`,
+`blocked`, then `pass`. Input item order is preserved.
+
+### 16.6 Existing report adapter
+
+`semantic_checks_from_report(report)` validates an existing
+`cad-verification` report and maps its ordered rows:
+
+- pass -> pass;
+- fail -> fail;
+- error -> error;
+- skipped -> skipped.
+
+The report row ID becomes the semantic check name. Row reason, evidence and
+artifact records are preserved in the semantic evidence object. The adapter
+does not invent paths or consumer policy.
+
+### 16.7 Boundary and tests
+
+The module contains no consumer-domain check names and no CAD-CI, publication,
+materialization or repository-state behavior.
+
+Tests cover issue #10 R1-R8 through the installed wheel.

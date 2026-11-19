@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+
+- add immutable generic semantic check records;
+- compose ordered semantic results with deterministic required-check precedence;
+- require a complete passing semantic result with typed failure evidence;
+- aggregate already-composed item results without executing work;
+- adapt existing verification reports while preserving evidence and artifacts.
+
+
 ## 0.4.0
 
 - add deterministic image normalization and baseline payload encoding/decoding;

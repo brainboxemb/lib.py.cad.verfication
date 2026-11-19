@@ -13,6 +13,7 @@ from .errors import (
     CommandFailed,
     CommandTimedOut,
     MeshLoadError,
+    SemanticResultError,
     VerificationConfigError,
     VerificationError,
     VerificationFailure,
@@ -46,6 +47,13 @@ from .visual import (
     project_points,
     write_diff_image,
 )
+from .semantic import (
+    SemanticCheck,
+    compose_item_results,
+    compose_semantic_result,
+    require_semantic_pass,
+    semantic_checks_from_report,
+)
 from .verification import verify
 
 __all__ = [
@@ -60,6 +68,8 @@ __all__ = [
     "GeometryContract",
     "OrthographicCamera",
     "MeshLoadError",
+    "SemanticCheck",
+    "SemanticResultError",
     "VerificationCheck",
     "VerificationConfigError",
     "VerificationContext",
@@ -72,6 +82,8 @@ __all__ = [
     "VisualViewEvidence",
     "compare_bounds",
     "compare_images",
+    "compose_item_results",
+    "compose_semantic_result",
     "compare_scalar",
     "compare_vector",
     "decode_baseline",
@@ -82,6 +94,8 @@ __all__ = [
     "match_body_envelopes",
     "normalize_image",
     "project_points",
+    "require_semantic_pass",
+    "semantic_checks_from_report",
     "run_command",
     "validate_mesh_geometry",
     "verify",

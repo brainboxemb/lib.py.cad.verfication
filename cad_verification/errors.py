@@ -29,6 +29,10 @@ class MeshLoadError(VerificationError):
     """Raised when exported mesh data cannot be loaded or measured."""
 
 
+class SemanticResultError(VerificationFailure):
+    """Raised when a composed semantic result is not passing."""
+
+
 class VisualEvidenceError(VerificationError):
     """Raised when visual evidence cannot be loaded or decoded."""
 
