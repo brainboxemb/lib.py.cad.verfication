@@ -563,3 +563,107 @@ The SolidCraft adapter must not import Forge/SCPF or contain:
 Tests must prove both the public behavior and this dependency boundary.
 
 This work is tracked by issue #32.
+
+
+## 21. Declarative SolidCraft model verification
+
+The library provides one reusable runner for an already-produced native
+SolidCraft model.
+
+A consumer supplies a `SolidCraftVerification` definition containing:
+
+- a stable verification ID;
+- one baseline `SolidCraftModelExpectation`;
+- zero or more saved-design mutations;
+- zero or more read-only inspections;
+- optional JSON-compatible metadata.
+
+The consumer definition contains model-specific data only. It must not contain
+verification callbacks.
+
+### 21.1 Baseline
+
+The baseline check must:
+
+1. evaluate the supplied native `.sc` model through the SolidCraft adapter;
+2. verify the resulting measurements with
+   `verify_solidcraft_measurements()`;
+3. retain the measurement JSON as an artifact;
+4. record the returned deterministic evidence in the normal verification
+   report.
+
+The runner does not create the initial native model. Producing that model is a
+consumer responsibility.
+
+### 21.2 Saved-design mutation
+
+A `SolidCraftSavedDesign` contains:
+
+- a stable ID;
+- a SolidCraft command JSON path;
+- the expected `SolidCraftModelExpectation` after the mutation.
+
+For every saved design the runner must:
+
+1. apply the command to the original native model without rerunning consumer
+   source code;
+2. save the changed `.sc` model below the verification output directory;
+3. evaluate the changed model;
+4. verify the changed measurements;
+5. retain both the changed model and measurement JSON as artifacts.
+
+Saved-design checks execute in declared order and are independent; each starts
+from the original supplied model.
+
+### 21.3 Read-only inspection
+
+A `SolidCraftInspection` contains:
+
+- a stable ID;
+- a SolidCraft inspection command JSON path;
+- optional exact JSON-compatible expected result data.
+
+The runner executes the inspection against the original supplied native model
+and retains its JSON result as an artifact.
+
+When exact expected result data is supplied, the runner compares it with
+`require_equal()`. More specialized tolerant inspection semantics are added
+to the SolidCraft adapter only when a consumer requires them; consumers must
+not reimplement shared inspection parsing merely to bypass the library.
+
+### 21.4 Runner
+
+Expose:
+
+```python
+run_solidcraft_verification(
+    model_path,
+    output_dir,
+    definition,
+)
+```
+
+The function:
+
+- constructs the normal `VerificationContext`;
+- constructs the baseline/saved-design/inspection checks from the definition;
+- executes them through the existing `verify()` function;
+- writes the normal `verification.json`;
+- returns that report.
+
+There is no model-owned CLI requirement and no repository discovery.
+
+### 21.5 Boundary
+
+The declarative runner must not:
+
+- import Forge/SCPF;
+- compile or replay Forge command documents;
+- read CAD-CI environment variables;
+- select models from a repository;
+- use SCons;
+- publish build/Page output.
+
+Tests must prove the runner through the installed built wheel before release.
+
+This work is tracked by issue #36.

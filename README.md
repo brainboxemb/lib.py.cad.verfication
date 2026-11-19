@@ -2,7 +2,7 @@
 
 Reusable Python library for CAD/model verification.
 
-Current release candidate: **0.8.0**.
+Current release candidate: **0.9.0**.
 
 The repository name keeps the existing `verfication` spelling. The Python
 package uses the normal spelling: `cad_verification`.
@@ -267,6 +267,73 @@ the reusable `solidcraft-cli` evaluate/mutate/inspect operations.
 
 The adapter does not import Forge/SCPF and does not contain model-specific
 dimensions or model names.
+
+
+## Declarative SolidCraft model verification
+
+Once a consumer has produced a native SolidCraft `.sc` model, the remaining
+verification is declarative:
+
+~~~python
+from cad_verification import (
+    BodyEnvelope,
+    SolidCraftModelExpectation,
+    SolidCraftSavedDesign,
+    SolidCraftVerification,
+    run_solidcraft_verification,
+)
+
+definition = SolidCraftVerification(
+    verification_id="simple-box",
+    baseline=SolidCraftModelExpectation(
+        body_count=1,
+        body_envelopes=(
+            BodyEnvelope(
+                (-20, -15, 0),
+                (20, 15, 10),
+            ),
+        ),
+        bounds_tolerance=0.001,
+        parameters={
+            "length": 40.0,
+            "width": 30.0,
+            "height": 10.0,
+        },
+    ),
+    saved_designs=(
+        SolidCraftSavedDesign(
+            id="length_50",
+            command_path="change_length.json",
+            expectation=SolidCraftModelExpectation(
+                body_count=1,
+                body_envelopes=(
+                    BodyEnvelope(
+                        (-25, -15, 0),
+                        (25, 15, 10),
+                    ),
+                ),
+                bounds_tolerance=0.001,
+                parameters={
+                    "length": 50.0,
+                    "width": 30.0,
+                    "height": 10.0,
+                },
+            ),
+        ),
+    ),
+)
+
+report = run_solidcraft_verification(
+    "model.sc",
+    "verification-output",
+    definition,
+)
+~~~
+
+The consumer does not implement its own SolidCraft eval/mutate/inspect loop,
+check construction, artifact handling or report writing. Forge/SCPF remains
+responsible only for producing the initial native model and for supplying the
+model-specific definition data.
 
 
 ## Repository CI

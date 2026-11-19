@@ -2,12 +2,16 @@
 
 from .adapters import (
     SolidCraftBodyExpectation,
+    SolidCraftInspection,
     SolidCraftModelExpectation,
+    SolidCraftSavedDesign,
     SolidCraftSketchExpectation,
     SolidCraftTimelineExpectation,
+    SolidCraftVerification,
     evaluate_solidcraft_model,
     inspect_solidcraft_model,
     mutate_solidcraft_model,
+    run_solidcraft_verification,
     verify_solidcraft_measurements,
 )
 from .assertions import (
@@ -88,9 +92,12 @@ __all__ = [
     "SemanticResultError",
     "SolidCraftBodyExpectation",
     "SolidCraftEvidenceError",
+    "SolidCraftInspection",
     "SolidCraftModelExpectation",
+    "SolidCraftSavedDesign",
     "SolidCraftSketchExpectation",
     "SolidCraftTimelineExpectation",
+    "SolidCraftVerification",
     "VerificationCheck",
     "VerificationConfigError",
     "VerificationContext",
@@ -116,6 +123,7 @@ __all__ = [
     "match_body_envelopes",
     "mutate_solidcraft_model",
     "normalize_image",
+    "run_solidcraft_verification",
     "project_points",
     "require_condition",
     "require_equal",

@@ -1,0 +1,426 @@
+"""Requirement tests for declarative SolidCraft model verification."""
+
+from __future__ import annotations
+
+import inspect
+import json
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+
+from cad_verification import (
+    SolidCraftInspection,
+    SolidCraftModelExpectation,
+    SolidCraftSavedDesign,
+    SolidCraftVerification,
+    VerificationConfigError,
+    run_solidcraft_verification,
+)
+import cad_verification.adapters.solidcraft as solidcraft_module
+
+
+def _measurements(length: float = 40.0) -> dict:
+    """Return one minimal valid SolidCraft measurement object."""
+
+    half = length / 2.0
+    return {
+        "body_count": 1,
+        "bodies": [
+            {
+                "name": "Box",
+                "bbox": {
+                    "min": [-half, -15.0, 0.0],
+                    "max": [half, 15.0, 10.0],
+                },
+            }
+        ],
+        "params": [
+            {"name": "length", "value": length},
+            {"name": "width", "value": 30.0},
+            {"name": "height", "value": 10.0},
+        ],
+    }
+
+
+def _expectation(length: float = 40.0) -> SolidCraftModelExpectation:
+    """Return matching model-specific expectation data."""
+
+    half = length / 2.0
+    from cad_verification import BodyEnvelope
+
+    return SolidCraftModelExpectation(
+        body_count=1,
+        body_envelopes=(
+            BodyEnvelope(
+                (-half, -15.0, 0.0),
+                (half, 15.0, 10.0),
+                "box",
+            ),
+        ),
+        bounds_tolerance=0.001,
+        parameters={
+            "length": length,
+            "width": 30.0,
+            "height": 10.0,
+        },
+    )
+
+
+class DeclarativeSolidCraftVerificationTests(unittest.TestCase):
+    def test_baseline_definition_produces_report_and_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            model = root / "input" / "model.sc"
+            model.parent.mkdir()
+            model.write_text("native", encoding="utf-8")
+            output = root / "verification"
+
+            definition = SolidCraftVerification(
+                verification_id="simple-box",
+                baseline=_expectation(),
+                metadata={"title": "Simple box"},
+            )
+
+            def evaluate(_model, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                data = _measurements()
+                destination.write_text(json.dumps(data), encoding="utf-8")
+                return data
+
+            with patch.object(
+                solidcraft_module,
+                "evaluate_solidcraft_model",
+                side_effect=evaluate,
+            ) as evaluate_mock:
+                report = run_solidcraft_verification(
+                    model,
+                    output,
+                    definition,
+                )
+
+            self.assertEqual(report["status"], "pass")
+            self.assertEqual(
+                [row["id"] for row in report["checks"]],
+                ["baseline"],
+            )
+            self.assertEqual(report["metadata"], {"title": "Simple box"})
+            self.assertTrue(
+                (output / "baseline" / "measurements.json").is_file()
+            )
+            self.assertTrue((output / "verification.json").is_file())
+            evaluate_mock.assert_called_once_with(
+                model.resolve(),
+                output.resolve() / "baseline" / "measurements.json",
+            )
+
+    def test_saved_design_starts_from_original_model(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            model = root / "model.sc"
+            model.write_text("native", encoding="utf-8")
+            command_a = root / "length-50.json"
+            command_b = root / "length-60.json"
+            command_a.write_text("{}", encoding="utf-8")
+            command_b.write_text("{}", encoding="utf-8")
+            output = root / "out"
+
+            definition = SolidCraftVerification(
+                verification_id="simple-box",
+                baseline=_expectation(40.0),
+                saved_designs=(
+                    SolidCraftSavedDesign(
+                        id="length_50",
+                        command_path=command_a,
+                        expectation=_expectation(50.0),
+                    ),
+                    SolidCraftSavedDesign(
+                        id="length_60",
+                        command_path=command_b,
+                        expectation=_expectation(60.0),
+                    ),
+                ),
+            )
+
+            mutations = []
+
+            def mutate(source, command, destination):
+                mutations.append((source, command, destination))
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text("changed", encoding="utf-8")
+                return destination
+
+            def evaluate(source, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                if "length_50" in destination.as_posix():
+                    data = _measurements(50.0)
+                elif "length_60" in destination.as_posix():
+                    data = _measurements(60.0)
+                else:
+                    data = _measurements(40.0)
+                destination.write_text(json.dumps(data), encoding="utf-8")
+                return data
+
+            with (
+                patch.object(
+                    solidcraft_module,
+                    "mutate_solidcraft_model",
+                    side_effect=mutate,
+                ),
+                patch.object(
+                    solidcraft_module,
+                    "evaluate_solidcraft_model",
+                    side_effect=evaluate,
+                ),
+            ):
+                report = run_solidcraft_verification(
+                    model,
+                    output,
+                    definition,
+                )
+
+            self.assertEqual(report["status"], "pass")
+            self.assertEqual(
+                [row["id"] for row in report["checks"]],
+                [
+                    "baseline",
+                    "saved_design_length_50",
+                    "saved_design_length_60",
+                ],
+            )
+            self.assertEqual(len(mutations), 2)
+            self.assertEqual(mutations[0][0], model.resolve())
+            self.assertEqual(mutations[1][0], model.resolve())
+            self.assertTrue(
+                (output / "saved_designs" / "length_50" / "model.sc").is_file()
+            )
+            self.assertTrue(
+                (
+                    output
+                    / "saved_designs"
+                    / "length_60"
+                    / "measurements.json"
+                ).is_file()
+            )
+
+    def test_inspection_exact_result_is_verified_and_retained(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            model = root / "model.sc"
+            model.write_text("native", encoding="utf-8")
+            command = root / "inspect.json"
+            command.write_text("{}", encoding="utf-8")
+            output = root / "out"
+
+            expected = [{"name": "Box", "grounded": True}]
+            definition = SolidCraftVerification(
+                verification_id="inspection-model",
+                baseline=_expectation(),
+                inspections=(
+                    SolidCraftInspection(
+                        id="components",
+                        command_path=command,
+                        expected=expected,
+                    ),
+                ),
+            )
+
+            def evaluate(_source, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                data = _measurements()
+                destination.write_text(json.dumps(data), encoding="utf-8")
+                return data
+
+            def inspect_model(_source, _command, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text(
+                    json.dumps(expected),
+                    encoding="utf-8",
+                )
+                return expected
+
+            with (
+                patch.object(
+                    solidcraft_module,
+                    "evaluate_solidcraft_model",
+                    side_effect=evaluate,
+                ),
+                patch.object(
+                    solidcraft_module,
+                    "inspect_solidcraft_model",
+                    side_effect=inspect_model,
+                ) as inspect_mock,
+            ):
+                report = run_solidcraft_verification(
+                    model,
+                    output,
+                    definition,
+                )
+
+            self.assertEqual(report["status"], "pass")
+            self.assertEqual(
+                [row["id"] for row in report["checks"]],
+                ["baseline", "inspection_components"],
+            )
+            self.assertTrue(
+                (output / "inspections" / "components" / "results.json").is_file()
+            )
+            inspect_mock.assert_called_once_with(
+                model.resolve(),
+                command,
+                output.resolve()
+                / "inspections"
+                / "components"
+                / "results.json",
+            )
+
+    def test_inspection_mismatch_is_normal_verification_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            model = root / "model.sc"
+            model.write_text("native", encoding="utf-8")
+            command = root / "inspect.json"
+            command.write_text("{}", encoding="utf-8")
+
+            definition = SolidCraftVerification(
+                verification_id="inspection-model",
+                baseline=_expectation(),
+                inspections=(
+                    SolidCraftInspection(
+                        id="result",
+                        command_path=command,
+                        expected={"value": 2},
+                    ),
+                ),
+            )
+
+            def evaluate(_source, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                data = _measurements()
+                destination.write_text(json.dumps(data), encoding="utf-8")
+                return data
+
+            def inspect_model(_source, _command, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text('{"value": 3}', encoding="utf-8")
+                return {"value": 3}
+
+            with (
+                patch.object(
+                    solidcraft_module,
+                    "evaluate_solidcraft_model",
+                    side_effect=evaluate,
+                ),
+                patch.object(
+                    solidcraft_module,
+                    "inspect_solidcraft_model",
+                    side_effect=inspect_model,
+                ),
+            ):
+                report = run_solidcraft_verification(
+                    model,
+                    root / "out",
+                    definition,
+                )
+
+            self.assertEqual(report["status"], "fail")
+            self.assertEqual(
+                report["checks"][-1]["id"],
+                "inspection_result",
+            )
+
+    def test_inspection_can_retain_result_without_exact_comparison(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            model = root / "model.sc"
+            model.write_text("native", encoding="utf-8")
+            command = root / "inspect.json"
+            command.write_text("{}", encoding="utf-8")
+
+            definition = SolidCraftVerification(
+                verification_id="inspection-model",
+                baseline=_expectation(),
+                inspections=(
+                    SolidCraftInspection(
+                        id="capture",
+                        command_path=command,
+                    ),
+                ),
+            )
+
+            def evaluate(_source, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                data = _measurements()
+                destination.write_text(json.dumps(data), encoding="utf-8")
+                return data
+
+            def inspect_model(_source, _command, destination):
+                result = None
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text("null", encoding="utf-8")
+                return result
+
+            with (
+                patch.object(
+                    solidcraft_module,
+                    "evaluate_solidcraft_model",
+                    side_effect=evaluate,
+                ),
+                patch.object(
+                    solidcraft_module,
+                    "inspect_solidcraft_model",
+                    side_effect=inspect_model,
+                ),
+            ):
+                report = run_solidcraft_verification(
+                    model,
+                    root / "out",
+                    definition,
+                )
+
+            self.assertEqual(report["status"], "pass")
+
+    def test_definition_rejects_invalid_and_duplicate_ids(self):
+        with self.assertRaises(VerificationConfigError):
+            SolidCraftSavedDesign(
+                id="Not valid",
+                command_path=Path("change.json"),
+                expectation=_expectation(),
+            )
+
+        with self.assertRaises(VerificationConfigError):
+            SolidCraftVerification(
+                verification_id="simple-box",
+                baseline=_expectation(),
+                saved_designs=(
+                    SolidCraftSavedDesign(
+                        id="same",
+                        command_path=Path("one.json"),
+                        expectation=_expectation(),
+                    ),
+                    SolidCraftSavedDesign(
+                        id="same",
+                        command_path=Path("two.json"),
+                        expectation=_expectation(),
+                    ),
+                ),
+            )
+
+    def test_runner_has_no_forge_or_ci_dependency(self):
+        source = inspect.getsource(solidcraft_module).lower()
+        forbidden = (
+            "import scpf",
+            "from scpf",
+            "cad_ci_item",
+            "cad_ci_output",
+            "import scons",
+            "from scons",
+            "tool.cad.ci",
+        )
+        for value in forbidden:
+            with self.subTest(value=value):
+                self.assertNotIn(value, source)
+
+
+if __name__ == "__main__":
+    unittest.main()

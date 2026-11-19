@@ -6,11 +6,12 @@ operations. Model-specific expected values remain consumer-supplied data.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import math
 from numbers import Real
 from pathlib import Path
+import re
 from typing import Any, Mapping
 
 from ..assertions import require_equal
@@ -24,7 +25,9 @@ from ..errors import (
     SolidCraftEvidenceError,
     VerificationConfigError,
 )
+from ..model import CheckOutcome, VerificationCheck, VerificationContext
 from ..process import run_command
+from ..verification import verify
 
 
 def _config_number(value: Any, name: str) -> float:
@@ -791,3 +794,270 @@ def verify_solidcraft_measurements(
         evidence["sketches"] = sketch_evidence
 
     return evidence
+
+
+_IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+_NO_INSPECTION_EXPECTATION = object()
+
+
+def _identifier(value: Any, name: str) -> str:
+    """Return one stable lowercase engineering identifier."""
+
+    if not isinstance(value, str) or not _IDENTIFIER.fullmatch(value):
+        raise VerificationConfigError(
+            f"{name} must match {_IDENTIFIER.pattern}"
+        )
+    return value
+
+
+@dataclass(frozen=True)
+class SolidCraftSavedDesign:
+    """One saved-design mutation and its expected SolidCraft result."""
+
+    id: str
+    command_path: Path
+    expectation: SolidCraftModelExpectation
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "id", _identifier(self.id, "saved design id"))
+        object.__setattr__(self, "command_path", Path(self.command_path))
+        if not isinstance(self.expectation, SolidCraftModelExpectation):
+            raise VerificationConfigError(
+                "saved design expectation must be a "
+                "SolidCraftModelExpectation"
+            )
+
+
+@dataclass(frozen=True)
+class SolidCraftInspection:
+    """One read-only SolidCraft inspection owned by a model definition."""
+
+    id: str
+    command_path: Path
+    expected: Any = field(
+        default=_NO_INSPECTION_EXPECTATION,
+        repr=False,
+    )
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "id", _identifier(self.id, "inspection id"))
+        object.__setattr__(self, "command_path", Path(self.command_path))
+
+        if self.expected is not _NO_INSPECTION_EXPECTATION:
+            try:
+                json.dumps(self.expected, sort_keys=True)
+            except (TypeError, ValueError) as exc:
+                raise VerificationConfigError(
+                    "inspection expected result must be JSON-compatible"
+                ) from exc
+
+
+@dataclass(frozen=True)
+class SolidCraftVerification:
+    """Declarative verification definition for one native SolidCraft model."""
+
+    verification_id: str
+    baseline: SolidCraftModelExpectation
+    saved_designs: tuple[SolidCraftSavedDesign, ...] = ()
+    inspections: tuple[SolidCraftInspection, ...] = ()
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "verification_id",
+            _identifier(self.verification_id, "verification id"),
+        )
+        if not isinstance(self.baseline, SolidCraftModelExpectation):
+            raise VerificationConfigError(
+                "baseline must be a SolidCraftModelExpectation"
+            )
+
+        saved_designs = tuple(self.saved_designs)
+        if not all(
+            isinstance(item, SolidCraftSavedDesign)
+            for item in saved_designs
+        ):
+            raise VerificationConfigError(
+                "saved_designs must contain SolidCraftSavedDesign values"
+            )
+        _require_unique_definition_ids(
+            (item.id for item in saved_designs),
+            "saved design",
+        )
+        object.__setattr__(self, "saved_designs", saved_designs)
+
+        inspections = tuple(self.inspections)
+        if not all(
+            isinstance(item, SolidCraftInspection)
+            for item in inspections
+        ):
+            raise VerificationConfigError(
+                "inspections must contain SolidCraftInspection values"
+            )
+        _require_unique_definition_ids(
+            (item.id for item in inspections),
+            "inspection",
+        )
+        object.__setattr__(self, "inspections", inspections)
+
+        if not isinstance(self.metadata, Mapping):
+            raise VerificationConfigError("metadata must be a mapping")
+        metadata = dict(self.metadata)
+        try:
+            json.dumps(metadata, sort_keys=True)
+        except (TypeError, ValueError) as exc:
+            raise VerificationConfigError(
+                "metadata must be JSON-compatible"
+            ) from exc
+        object.__setattr__(self, "metadata", metadata)
+
+
+def _require_unique_definition_ids(
+    values,
+    kind: str,
+) -> None:
+    """Reject duplicate IDs inside one declarative definition namespace."""
+
+    seen: set[str] = set()
+    for value in values:
+        if value in seen:
+            raise VerificationConfigError(
+                f"duplicate {kind} id: {value}"
+            )
+        seen.add(value)
+
+
+def _baseline_check(
+    model_path: Path,
+    expectation: SolidCraftModelExpectation,
+):
+    """Build the baseline check without exposing procedural work to consumers."""
+
+    def run(ctx: VerificationContext) -> CheckOutcome:
+        destination = ctx.output_dir / "baseline" / "measurements.json"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        measurements = evaluate_solidcraft_model(
+            model_path,
+            destination,
+        )
+        evidence = verify_solidcraft_measurements(
+            measurements,
+            expectation,
+        )
+        return CheckOutcome.passed(
+            evidence=evidence,
+            artifacts=(destination,),
+        )
+
+    return run
+
+
+def _saved_design_check(
+    model_path: Path,
+    definition: SolidCraftSavedDesign,
+):
+    """Build one independent saved-design verification check."""
+
+    def run(ctx: VerificationContext) -> CheckOutcome:
+        root = ctx.output_dir / "saved_designs" / definition.id
+        root.mkdir(parents=True, exist_ok=True)
+        changed_model = root / "model.sc"
+        measurements_path = root / "measurements.json"
+
+        mutate_solidcraft_model(
+            model_path,
+            definition.command_path,
+            changed_model,
+        )
+        measurements = evaluate_solidcraft_model(
+            changed_model,
+            measurements_path,
+        )
+        evidence = verify_solidcraft_measurements(
+            measurements,
+            definition.expectation,
+        )
+        return CheckOutcome.passed(
+            evidence=evidence,
+            artifacts=(changed_model, measurements_path),
+        )
+
+    return run
+
+
+def _inspection_check(
+    model_path: Path,
+    definition: SolidCraftInspection,
+):
+    """Build one read-only SolidCraft inspection check."""
+
+    def run(ctx: VerificationContext) -> CheckOutcome:
+        root = ctx.output_dir / "inspections" / definition.id
+        root.mkdir(parents=True, exist_ok=True)
+        result_path = root / "results.json"
+        result = inspect_solidcraft_model(
+            model_path,
+            definition.command_path,
+            result_path,
+        )
+
+        evidence: Any = {"result": result}
+        if definition.expected is not _NO_INSPECTION_EXPECTATION:
+            evidence = require_equal(
+                definition.expected,
+                result,
+                label=f"SolidCraft inspection {definition.id}",
+            )
+
+        return CheckOutcome.passed(
+            evidence=evidence,
+            artifacts=(result_path,),
+        )
+
+    return run
+
+
+def run_solidcraft_verification(
+    model_path: Path,
+    output_dir: Path,
+    definition: SolidCraftVerification,
+) -> dict[str, Any]:
+    """Run one declarative verification for an existing SolidCraft model."""
+
+    if not isinstance(definition, SolidCraftVerification):
+        raise VerificationConfigError(
+            "definition must be a SolidCraftVerification"
+        )
+
+    model = Path(model_path).resolve()
+    output = Path(output_dir).resolve()
+
+    checks = [
+        VerificationCheck(
+            "baseline",
+            _baseline_check(model, definition.baseline),
+        )
+    ]
+    checks.extend(
+        VerificationCheck(
+            f"saved_design_{item.id}",
+            _saved_design_check(model, item),
+        )
+        for item in definition.saved_designs
+    )
+    checks.extend(
+        VerificationCheck(
+            f"inspection_{item.id}",
+            _inspection_check(model, item),
+        )
+        for item in definition.inspections
+    )
+
+    context = VerificationContext(
+        verification_id=definition.verification_id,
+        input_path=model,
+        output_dir=output,
+        metadata=definition.metadata,
+    )
+    return verify(context, checks)
