@@ -405,3 +405,110 @@ A disconnected multi-part fixture combines two generated boxes before STL
 export.
 
 Tests run through the built wheel using the existing library CI path.
+
+## 14. Numeric and measured-body comparison
+
+### 14.1 Module
+
+Add one CAD-engine-neutral module:
+
+```text
+cad_verification/
+  comparison.py
+```
+
+The module accepts only Python numeric values, vectors and normalized body
+envelopes. It must not import trimesh, SolidCraft, Forge or another CAD library.
+
+### 14.2 BodyEnvelope
+
+Expose one frozen `BodyEnvelope` dataclass containing:
+
+- `minimum`: XYZ minimum;
+- `maximum`: XYZ maximum;
+- optional `label`.
+
+Construction normalizes XYZ values to finite float tuples and rejects inverted
+bounds. Labels are descriptive evidence only; bounds determine matching.
+
+### 14.3 Scalar and vector comparison
+
+Expose:
+
+```python
+compare_scalar(expected, actual, tolerance, *, label=None)
+compare_vector(expected, actual, tolerance, *, label=None)
+```
+
+Both functions validate finite numeric input and a non-negative tolerance.
+
+A passing comparison returns deterministic JSON-compatible evidence. A mismatch
+raises `VerificationFailure` with exactly that evidence.
+
+Vector comparison requires equal non-empty vectors and records per-element
+absolute deltas plus the maximum delta.
+
+### 14.4 Bounds comparison
+
+Expose:
+
+```python
+compare_bounds(
+    expected_min,
+    expected_max,
+    actual_min,
+    actual_max,
+    tolerance,
+    *,
+    label=None,
+)
+```
+
+All four vectors are normalized as XYZ values. Expected and actual bounds must
+not be inverted. Evidence records expected/actual min/max vectors, six absolute
+coordinate deltas, maximum delta, tolerance and pass/fail.
+
+### 14.5 Body-envelope matching
+
+Expose:
+
+```python
+match_body_envelopes(expected, actual, tolerance)
+```
+
+Inputs contain `BodyEnvelope` values.
+
+Matching is one-to-one and independent of actual input order:
+
+1. normalize and canonically sort actual envelopes by label/bounds;
+2. walk expected envelopes in their declared order;
+3. for each expected envelope, choose the unmatched in-tolerance actual envelope
+   with the smallest maximum bounds delta;
+4. break equal-distance ties by canonical actual envelope order.
+
+Evidence contains counts, matched pairs, unmatched expected envelopes, unmatched
+actual envelopes and pass/fail. Any unmatched envelope raises one
+`VerificationFailure` after the complete evidence has been built.
+
+### 14.6 Existing verification integration
+
+No change to `verify()` is required.
+
+Consumers may return passing comparison evidence from a normal check. A raised
+`VerificationFailure` is already mapped to check status `fail` and its
+evidence is preserved in `verification.json`.
+
+### 14.7 Public exports and tests
+
+Export:
+
+```python
+BodyEnvelope
+compare_scalar
+compare_vector
+compare_bounds
+match_body_envelopes
+```
+
+Tests cover issue #8 R1-R6 and run through the installed wheel using the
+repository's released `tool.py.lib.ci` path.
