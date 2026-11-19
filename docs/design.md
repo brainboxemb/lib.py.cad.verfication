@@ -888,3 +888,156 @@ CI code or publication code. It does not replace toleranced comparison helpers
 or semantic-result composition.
 
 Direct built-wheel tests cover issue #29.
+
+
+## 18. CAD-tool adapter architecture
+
+### 18.1 Package structure
+
+CAD-tool-specific verification lives below:
+
+```text
+cad_verification/
+  adapters/
+    __init__.py
+    solidcraft.py
+```
+
+Future OpenSCAD, FreeCAD or other adapters use sibling modules. They are added
+only when a consumer requires them.
+
+Generic modules such as `comparison.py` and `assertions.py` remain
+CAD-tool independent. Adapter modules may call those generic APIs.
+
+### 18.2 Public SolidCraft types
+
+The initial SolidCraft adapter exposes immutable expectation types:
+
+```python
+SolidCraftModelExpectation
+SolidCraftBodyExpectation
+SolidCraftTimelineExpectation
+SolidCraftSketchExpectation
+```
+
+`SolidCraftModelExpectation` contains only model-specific expected data. It
+does not contain callables.
+
+Body-envelope expectations use the existing `BodyEnvelope` type and one
+caller-supplied bounds tolerance.
+
+A named-body expectation selects exactly one SolidCraft body by native-name
+prefix and may request:
+
+- expected bounds with a tolerance;
+- expected volume with a tolerance;
+- exact sheet-metal state;
+- exact closed/open state.
+
+A timeline expectation contains semantic fields exposed by SolidCraft:
+feature type, optional name, expected error and expected warning.
+
+A sketch expectation identifies one sketch by name and may request profile
+count, curve count and solver status.
+
+### 18.3 SolidCraft evidence normalization
+
+The adapter validates and normalizes the measurement object before performing
+requested comparisons.
+
+Required structure is checked only when the corresponding expectation needs it.
+When body verification is requested, `bodies` must be a list and each used
+body must contain a valid `bbox.min` and `bbox.max`.
+
+When parameter verification is requested, `params` must be a list of rows
+with string `name` and finite numeric `value`.
+
+Timeline/sketch verification follows the same rule: malformed requested
+evidence raises `SolidCraftEvidenceError`, derived from `VerificationError`.
+
+No malformed row is silently skipped.
+
+### 18.4 Measurement verification
+
+Expose:
+
+```python
+verify_solidcraft_measurements(measurements, expectation)
+```
+
+The function builds deterministic section evidence in this order:
+
+1. body envelopes;
+2. parameters;
+3. named bodies;
+4. timeline;
+5. sketches.
+
+Only sections present in the expectation are evaluated.
+
+Implementation reuses:
+
+- `match_body_envelopes()`;
+- `compare_bounds()`;
+- `compare_scalar()`;
+- `require_equal()`;
+- `require_condition()` where required.
+
+A comparison mismatch remains `VerificationFailure`. Schema/parse errors are
+`SolidCraftEvidenceError`.
+
+### 18.5 SolidCraft command functions
+
+Expose:
+
+```python
+evaluate_solidcraft_model(model_path, destination)
+mutate_solidcraft_model(model_path, command_path, destination)
+inspect_solidcraft_model(model_path, command_path, destination)
+```
+
+The exact commands are:
+
+```text
+solidcraft-cli eval <model> --json-out <destination>
+solidcraft-cli run <command> --in <model> --param-check strict --save <destination>
+solidcraft-cli run <command> --in <model> --param-check strict --results --json-out <destination>
+```
+
+All processes go through `run_command()`.
+
+JSON produced by evaluate/inspect is loaded by the adapter. Invalid JSON or an
+unexpected top-level shape is a `SolidCraftEvidenceError`.
+
+### 18.6 Consumer boundary
+
+Forge keeps declarations such as:
+
+```python
+SolidCraftModelExpectation(
+    bodies=(...model-specific expected bounds...),
+    parameters={...model-specific expected values...},
+    timeline=(...model-specific expected features...),
+)
+```
+
+Forge does not parse `bodies[].bbox`, `params`, `timeline` or
+`sketches` and does not implement shared SolidCraft eval/mutate/inspect
+helpers.
+
+The SolidCraft adapter does not compile Forge/SCPF source and does not import
+Forge. Initial Forge-to-SolidCraft replay remains a producer concern before the
+adapter verifies the produced native design.
+
+### 18.7 Tests
+
+Direct built-wheel tests prove:
+
+- valid body/parameter/timeline/sketch expectations pass;
+- numeric mismatches produce `VerificationFailure`;
+- malformed requested SolidCraft evidence produces
+  `SolidCraftEvidenceError`;
+- malformed bodies are never skipped;
+- named-body selection requires exactly one match;
+- command argv for evaluate/mutate/inspect is exact;
+- the adapter imports no Forge/SCPF, SCons or CAD-CI implementation.
