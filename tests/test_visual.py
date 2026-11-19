@@ -29,6 +29,7 @@ from cad_verification import (
     make_overlay_image,
     normalize_image,
     project_points,
+    verify_visual_view,
     write_diff_image,
 )
 
@@ -417,6 +418,204 @@ class VisualVerificationTests(unittest.TestCase):
             missing_outputs["expected_shape_status"],
             "missing",
         )
+
+    def test_r11_verify_visual_view_passes_and_writes_all_artifacts(self):
+        actual = self.write_image(
+            "actual.png",
+            "RGB",
+            (80, 60),
+            (100, 100, 100),
+        )
+        baseline = self.write_image(
+            "baseline.png",
+            "RGB",
+            (80, 60),
+            (100, 100, 100),
+        )
+        diff = self.root / "out" / "diff.png"
+        goal = self.root / "out" / "goal.png"
+        overlay = self.root / "out" / "overlay.png"
+
+        evidence = verify_visual_view(
+            actual,
+            actual_reference="evidence/actual.png",
+            baseline_path=baseline,
+            normalized_size=(40, 30),
+            changed_pixel_threshold=12,
+            max_mean_difference=0,
+            max_changed_fraction=0,
+            diff_path=diff,
+            diff_reference="evidence/diff.png",
+            camera=self.front_camera(),
+            boxes=(ExpectedBox((-2, -1, -2), (2, 1, 2)),),
+            goal_path=goal,
+            goal_reference="evidence/goal.png",
+            overlay_path=overlay,
+            overlay_reference="evidence/overlay.png",
+        )
+
+        self.assertEqual(evidence.baseline_status, "pass")
+        self.assertEqual(evidence.expected_shape_status, "pass")
+        self.assertEqual(evidence.actual_image, "evidence/actual.png")
+        self.assertEqual(evidence.diff_image, "evidence/diff.png")
+        self.assertEqual(evidence.goal_image, "evidence/goal.png")
+        self.assertEqual(evidence.overlay_image, "evidence/overlay.png")
+        self.assertEqual(evidence.regression["pass"], True)
+        self.assertTrue(diff.is_file())
+        self.assertTrue(goal.is_file())
+        self.assertTrue(overlay.is_file())
+
+    def test_r12_visual_view_mismatch_preserves_complete_evidence(self):
+        actual = self.write_image(
+            "actual-fail.png",
+            "RGB",
+            (20, 20),
+            (200, 200, 200),
+        )
+        baseline = self.write_image(
+            "baseline-fail.png",
+            "RGB",
+            (20, 20),
+            (100, 100, 100),
+        )
+        diff = self.root / "fail" / "diff.png"
+        goal = self.root / "fail" / "goal.png"
+        overlay = self.root / "fail" / "overlay.png"
+
+        with self.assertRaises(VerificationFailure) as caught:
+            verify_visual_view(
+                actual,
+                actual_reference="actual-ref",
+                baseline_path=baseline,
+                normalized_size=(20, 20),
+                changed_pixel_threshold=1,
+                max_mean_difference=0,
+                max_changed_fraction=0,
+                diff_path=diff,
+                diff_reference="diff-ref",
+                camera=self.front_camera(),
+                boxes=(ExpectedBox((-1, -1, -1), (1, 1, 1)),),
+                goal_path=goal,
+                goal_reference="goal-ref",
+                overlay_path=overlay,
+                overlay_reference="overlay-ref",
+            )
+
+        evidence = caught.exception.evidence
+        self.assertEqual(evidence["baseline_status"], "fail")
+        self.assertEqual(evidence["expected_shape_status"], "pass")
+        self.assertEqual(evidence["actual_image"], "actual-ref")
+        self.assertEqual(evidence["diff_image"], "diff-ref")
+        self.assertEqual(evidence["goal_image"], "goal-ref")
+        self.assertEqual(evidence["overlay_image"], "overlay-ref")
+        self.assertFalse(evidence["regression"]["pass"])
+        self.assertTrue(diff.is_file())
+        self.assertTrue(goal.is_file())
+        self.assertTrue(overlay.is_file())
+
+    def test_r13_visual_view_missing_baseline_is_explicit(self):
+        actual = self.write_image(
+            "actual-missing.png",
+            "RGB",
+            (20, 20),
+            (100, 100, 100),
+        )
+        diff = self.root / "missing" / "diff.png"
+
+        evidence = verify_visual_view(
+            actual,
+            actual_reference="actual",
+            baseline_path=self.root / "not-approved.png",
+            normalized_size=(10, 10),
+            changed_pixel_threshold=12,
+            max_mean_difference=6,
+            max_changed_fraction=0.08,
+            diff_path=diff,
+        )
+
+        self.assertEqual(evidence.baseline_status, "missing")
+        self.assertIsNone(evidence.regression)
+        self.assertIsNone(evidence.diff_image)
+        self.assertEqual(evidence.expected_shape_status, "missing")
+        self.assertFalse(diff.exists())
+
+    def test_r14_visual_view_configuration_is_explicit(self):
+        actual = self.write_image(
+            "actual-config.png",
+            "RGB",
+            (20, 20),
+            (100, 100, 100),
+        )
+        baseline = self.write_image(
+            "baseline-config.png",
+            "RGB",
+            (20, 20),
+            (100, 100, 100),
+        )
+        box = ExpectedBox((-1, -1, -1), (1, 1, 1))
+
+        with self.assertRaisesRegex(
+            VerificationConfigError,
+            "diff_path is required",
+        ):
+            verify_visual_view(
+                actual,
+                actual_reference=None,
+                baseline_path=baseline,
+                normalized_size=(10, 10),
+                changed_pixel_threshold=12,
+                max_mean_difference=6,
+                max_changed_fraction=0.08,
+                diff_path=None,
+            )
+
+        with self.assertRaisesRegex(
+            VerificationConfigError,
+            "expected geometry requires a camera",
+        ):
+            verify_visual_view(
+                actual,
+                actual_reference=None,
+                normalized_size=(10, 10),
+                changed_pixel_threshold=12,
+                max_mean_difference=6,
+                max_changed_fraction=0.08,
+                diff_path=self.root / "unused.png",
+                boxes=(box,),
+            )
+
+        with self.assertRaisesRegex(
+            VerificationConfigError,
+            "camera requires expected geometry",
+        ):
+            verify_visual_view(
+                actual,
+                actual_reference=None,
+                normalized_size=(10, 10),
+                changed_pixel_threshold=12,
+                max_mean_difference=6,
+                max_changed_fraction=0.08,
+                diff_path=self.root / "unused.png",
+                camera=self.front_camera(),
+                goal_path=self.root / "goal.png",
+                overlay_path=self.root / "overlay.png",
+            )
+
+        with self.assertRaisesRegex(
+            VerificationConfigError,
+            "goal_path and overlay_path are required",
+        ):
+            verify_visual_view(
+                actual,
+                actual_reference=None,
+                normalized_size=(10, 10),
+                changed_pixel_threshold=12,
+                max_mean_difference=6,
+                max_changed_fraction=0.08,
+                diff_path=self.root / "unused.png",
+                camera=self.front_camera(),
+                boxes=(box,),
+            )
 
     def test_r10_module_contains_no_consumer_or_view_policy(self):
         source = inspect.getsource(visual_module).lower()

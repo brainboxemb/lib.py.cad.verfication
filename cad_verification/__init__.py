@@ -45,6 +45,7 @@ from .visual import (
     make_overlay_image,
     normalize_image,
     project_points,
+    verify_visual_view,
     write_diff_image,
 )
 from .semantic import (
@@ -99,5 +100,6 @@ __all__ = [
     "run_command",
     "validate_mesh_geometry",
     "verify",
+    "verify_visual_view",
     "write_diff_image",
 ]

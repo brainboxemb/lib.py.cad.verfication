@@ -318,7 +318,10 @@ Generic behavior includes:
    target, yaw, pitch and distance;
 6. draw consumer-supplied expected 3D boxes;
 7. draw generic through-hole and through-slot expected features;
-8. produce goal and overlay images where the actual render remains visible.
+8. produce goal and overlay images where the actual render remains visible;
+9. verify one already-rendered visual view by composing normalization, optional
+   approved-baseline regression, deterministic diff output, optional expected
+   geometry goal/overlay generation and one `VisualViewEvidence`.
 
 The consumer owns:
 
@@ -327,7 +330,23 @@ The consumer owns:
 - model cameras;
 - approved baselines;
 - model boxes/features;
-- image thresholds.
+- image thresholds;
+- artifact/evidence references used for the already-rendered view.
+
+The single-view verification function:
+- accepts an already-rendered actual image and never invokes a CAD engine;
+- treats an absent baseline as explicit `missing`, not as a pixel mismatch;
+- compares an existing baseline with caller-supplied thresholds;
+- always writes the deterministic diff when baseline comparison is attempted;
+- preserves complete visual-view evidence when regression fails;
+- optionally creates goal and overlay images only from caller-supplied generic
+  camera/box/hole/slot values;
+- returns one deterministic `VisualViewEvidence` on success or missing
+  baseline;
+- raises `VerificationFailure` on regression mismatch with the complete
+  visual-view evidence attached;
+- does not choose view names, cameras, baselines, expected model geometry or
+  required/optional policy.
 
 Tests must prove:
 
@@ -344,9 +363,15 @@ Tests must prove:
 - goal image contains independent expected geometry;
 - overlay preserves actual pixels and adds expected geometry;
 - missing baseline/image is distinguishable from pixel mismatch;
+- single-view pass evidence and caller-controlled artifact references;
+- single-view regression failure preserves complete visual evidence;
+- single-view missing baseline remains explicit without approving anything;
+- single-view goal and overlay generation use the existing generic drawing
+  primitives;
 - no SolidCraft/CADCraft/model policy is embedded.
 
-This work is tracked by issue #9.
+Primitive visual behavior was introduced by issue #9. Generic single-view
+orchestration is completed by issue #26.
 
 ## 17. Semantic verification result composition
 

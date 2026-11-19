@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0
+
+- add engine-neutral `verify_visual_view()` for one already-rendered view;
+- compose normalization, approved-baseline regression and deterministic diff output;
+- optionally create generic expected-geometry goal and overlay evidence;
+- preserve complete `VisualViewEvidence` on regression failure;
+- keep CAD rendering, view selection, camera conversion, baselines and model policy consumer-owned.
+
+
 ## 0.5.0
 
 - add immutable generic semantic check records;

@@ -649,6 +649,78 @@ geometry fixture.
 
 Tests cover issue #9 R1-R10 through the installed wheel.
 
+### 15.12 Single-view verification orchestration
+
+Expose one additional generic function:
+
+```python
+verify_visual_view(
+    actual_path,
+    *,
+    actual_reference,
+    baseline_path=None,
+    normalized_size,
+    changed_pixel_threshold,
+    max_mean_difference,
+    max_changed_fraction,
+    diff_path,
+    diff_reference=None,
+    camera=None,
+    boxes=(),
+    features=(),
+    goal_path=None,
+    goal_reference=None,
+    overlay_path=None,
+    overlay_reference=None,
+)
+```
+
+The function operates on one already-rendered consumer image. It never renders
+CAD and does not know a view name.
+
+Behavior:
+
+1. normalize `actual_path` with `normalize_image()`;
+2. when `baseline_path` is absent or does not exist, set
+   `baseline_status="missing"`, leave regression/diff evidence empty and do
+   not create a baseline;
+3. when a baseline exists, normalize it, write `diff_path`, then call
+   `compare_images()`;
+4. if regression fails, retain its evidence and continue composing optional
+   goal/overlay evidence before raising one `VerificationFailure`;
+5. when `camera` is supplied, at least one expected box/feature and both
+   `goal_path` and `overlay_path` are required; create both through the
+   existing generic drawing APIs;
+6. when `camera` is absent, expected geometry and goal/overlay paths must also
+   be absent, and `expected_shape_status="missing"`;
+7. return one `VisualViewEvidence` on pass/missing-baseline;
+8. on regression mismatch raise `VerificationFailure` with
+   `VisualViewEvidence.to_evidence()` as failure evidence.
+
+Evidence references are caller-controlled strings. The library never rewrites
+them relative to a repository or output tree. If a produced artifact reference
+is omitted, the corresponding evidence reference is `None`.
+
+This function composes only existing visual primitives. It does not introduce a
+view loop, required-view policy, model camera conversion, baseline approval or
+CAD-engine adapter.
+
+### 15.13 Single-view validation rules
+
+- `normalized_size` contains two positive integers;
+- `actual_reference` is a string or `None`;
+- diff/goal/overlay references are strings or `None`;
+- `diff_path` is required when an existing baseline is compared;
+- expected geometry without a camera is invalid;
+- a camera without expected geometry is invalid;
+- a camera requires both goal and overlay output paths;
+- invalid image paths/data retain `VisualEvidenceError` semantics from
+  `normalize_image()`;
+- invalid numeric/image/drawing configuration retains existing
+  `VerificationConfigError` semantics.
+
+Direct tests cover issue #26 without a consumer repository or CAD engine.
+
 ## 16. Semantic result composition
 
 ### 16.1 Module

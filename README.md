@@ -2,7 +2,7 @@
 
 Reusable Python library for CAD/model verification.
 
-Current release candidate: **0.5.0**.
+Current release candidate: **0.6.0**.
 
 The repository name keeps the existing `verfication` spelling. The Python
 package uses the normal spelling: `cad_verification`.
@@ -170,9 +170,37 @@ overlay = make_overlay_image(
 )
 ~~~
 
-Consumers own view selection, camera values, approved baselines and expected
-model geometry. The library owns only generic image comparison, projection,
-drawing and evidence.
+Consumers own view selection, CAD rendering, camera values, approved
+baselines and expected model geometry. The library owns only generic image
+comparison, projection, drawing and evidence.
+
+For one already-rendered view the library can compose those primitives directly:
+
+~~~python
+from cad_verification import verify_visual_view
+
+evidence = verify_visual_view(
+    "actual.png",
+    actual_reference="visual/actual.png",
+    baseline_path="approved.png",
+    normalized_size=(96, 72),
+    changed_pixel_threshold=12,
+    max_mean_difference=6.0,
+    max_changed_fraction=0.08,
+    diff_path="visual/diff.png",
+    diff_reference="visual/diff.png",
+    camera=camera,
+    boxes=(expected_box,),
+    goal_path="visual/goal.png",
+    goal_reference="visual/goal.png",
+    overlay_path="visual/overlay.png",
+    overlay_reference="visual/overlay.png",
+)
+~~~
+
+The function never renders CAD, selects a view, computes a model camera or
+approves a baseline. A missing baseline is reported explicitly; a regression
+mismatch raises `VerificationFailure` with complete `VisualViewEvidence`.
 
 
 ## Semantic result composition
