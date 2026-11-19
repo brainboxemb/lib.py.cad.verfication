@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+- add deterministic image normalization and baseline payload encoding/decoding;
+- add visual regression metrics and comparison image generation;
+- add generic orthographic projection and expected box/hole/slot drawing;
+- add independent goal and actual-overlay composition;
+- add structured per-view visual evidence with explicit missing states;
+- declare Pillow as an explicit dependency.
+
+
 ## 0.3.0
 
 - add CAD-engine-neutral scalar, vector and XYZ-bounds comparison helpers;

@@ -512,3 +512,139 @@ match_body_envelopes
 
 Tests cover issue #8 R1-R6 and run through the installed wheel using the
 repository's released `tool.py.lib.ci` path.
+
+## 15. Visual regression and expected-shape evidence
+
+### 15.1 Module and dependency
+
+Add one generic module:
+
+```text
+cad_verification/
+  visual.py
+```
+
+Declare Pillow explicitly. The module owns image normalization, baseline
+payloads, regression metrics, generic orthographic projection and drawing. It
+does not render CAD or know model/view names.
+
+### 15.2 Normalized images
+
+`normalize_image(path, width, height)` loads an image with Pillow, converts it
+through RGB to grayscale, resizes with LANCZOS and returns a grayscale
+`PIL.Image.Image` with the exact requested size.
+
+Missing, unreadable or invalid images raise `VisualEvidenceError`, derived
+from `VerificationError`. Width and height must be positive integers.
+
+### 15.3 Baseline payloads
+
+Expose deterministic baseline helpers using a JSON-compatible payload with:
+
+- encoding: `raw`, `zlib` or `png`;
+- width;
+- height;
+- base64 data.
+
+`encode_baseline(image, encoding=...)` accepts a normalized grayscale image.
+`decode_baseline(payload)` returns a grayscale image and validates dimensions
+and byte count.
+
+Raw and zlib forms encode grayscale bytes. PNG form encodes a deterministic
+Pillow PNG byte stream.
+
+### 15.4 Regression comparison
+
+`compare_images(current, reference, ...)` requires same-size grayscale
+images and computes:
+
+- mean absolute pixel difference;
+- changed-pixel fraction where absolute difference is greater than or equal to
+  the caller-supplied changed-pixel threshold.
+
+The caller supplies a maximum mean difference and maximum changed fraction.
+Evidence records both metrics, thresholds and pass/fail. Metrics are rounded to
+six decimal places for stable evidence. A mismatch raises
+`VerificationFailure` with the complete evidence.
+
+### 15.5 Difference image
+
+`write_diff_image(current, reference, output_path)` creates one deterministic
+RGB image with current grayscale information and absolute-difference
+information visible side by side. The output is twice the normalized width and
+keeps the same height.
+
+### 15.6 Orthographic camera
+
+Expose frozen `OrthographicCamera`:
+
+- target XYZ;
+- yaw degrees;
+- pitch degrees;
+- distance.
+
+Distance is the orthographic half-height scale and must be positive. Projection
+uses a stable camera basis. Exact top/bottom pitch uses a fallback up vector so
+the basis remains valid.
+
+`project_points(points, camera, width, height)` maps consumer-supplied 3D
+points to image-space floats. Front orientation maps X right and Z up; top
+orientation maps X right and Y up.
+
+### 15.7 Expected geometry types
+
+Expose frozen generic data types:
+
+- `ExpectedBox(minimum, maximum, label=None)`;
+- `ThroughHole(center, diameter, z_min, z_max, label=None)`;
+- `ThroughSlot(start, end, width, z_min, z_max, label=None)`.
+
+All values are normalized to finite floats. Bounds/ranges must not be inverted.
+Slot start and end may not be identical. Width/diameter must be positive.
+
+### 15.8 Expected drawing
+
+`draw_expected_geometry(image, camera, boxes=(), features=(), ...)` returns an
+RGB image copy with deterministic outlines. It accepts only the generic types
+above and rejects unknown feature objects.
+
+Boxes draw projected edges. Through holes draw projected top/bottom circles and
+their connecting side lines. Through slots draw projected capsule outlines at
+both Z levels and connecting side lines.
+
+Labels and translucent fill are optional generic presentation switches; tests do
+not depend on fonts.
+
+### 15.9 Goal and overlay
+
+`make_goal_image(size, camera, ...)` creates a blank RGB image and draws only
+consumer-supplied expected geometry.
+
+`make_overlay_image(actual, camera, ...)` copies the actual render and draws
+the same expected geometry over it, preserving unmodified actual pixels away
+from expected geometry.
+
+### 15.10 Visual view evidence
+
+Expose frozen `VisualViewEvidence` containing:
+
+- actual image reference or None;
+- baseline status;
+- optional regression evidence;
+- optional diff image reference;
+- goal image reference or None;
+- overlay image reference or None;
+- expected-shape status.
+
+Its `to_evidence()` output is deterministic JSON-compatible evidence.
+Missing baseline is represented explicitly as `missing`. Missing actual,
+goal or overlay are represented independently and are not converted into pixel
+mismatch.
+
+### 15.11 Boundary and tests
+
+The module must not import or invoke SolidCraft, CADCraft, Forge or a CAD
+engine. It owns no required-view list, model camera, baseline or expected
+geometry fixture.
+
+Tests cover issue #9 R1-R10 through the installed wheel.

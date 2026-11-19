@@ -29,6 +29,10 @@ class MeshLoadError(VerificationError):
     """Raised when exported mesh data cannot be loaded or measured."""
 
 
+class VisualEvidenceError(VerificationError):
+    """Raised when visual evidence cannot be loaded or decoded."""
+
+
 class ArtifactError(VerificationError):
     """Raised when declared verification output is missing or unsafe."""
 
