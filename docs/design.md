@@ -318,7 +318,7 @@ raise `VerificationConfigError` for invalid configuration.
 
 ### 13.3 Mesh library
 
-Use `trimesh>=4,<5` as an explicit package dependency.
+Use `trimesh>=4,<5` and `scipy>=1.12,<2` as explicit package dependencies. `scipy` is required by trimesh's validated topology-processing path used by the watertightness check.
 
 `validate_mesh_geometry()` loads the supplied STL with trimesh.
 
