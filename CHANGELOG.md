@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0
+
+- add the first CAD-tool-specific verification adapter for SolidCraft;
+- keep model-specific expected values in consumers while the adapter owns SolidCraft result/schema interpretation;
+- add declarative body, parameter, timeline, named-body and sketch expectations;
+- add strict SolidCraft evidence validation with typed infrastructure errors;
+- add reusable SolidCraft evaluate, mutate and inspect operations;
+- package and directly test `cad_verification.adapters` in the built wheel;
+- keep Forge compilation, CAD-CI execution and publication outside the library.
+
 ## 0.7.0
 
 - add engine-neutral `require_equal()` for exact expected/actual verification;
