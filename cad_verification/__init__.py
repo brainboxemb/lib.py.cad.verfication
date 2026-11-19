@@ -1,5 +1,12 @@
 """Reusable CAD/model verification library."""
 
+from .comparison import (
+    BodyEnvelope,
+    compare_bounds,
+    compare_scalar,
+    compare_vector,
+    match_body_envelopes,
+)
 from .errors import (
     ArtifactError,
     CommandError,
@@ -26,6 +33,7 @@ from .verification import verify
 
 __all__ = [
     "ArtifactError",
+    "BodyEnvelope",
     "CheckOutcome",
     "CommandError",
     "CommandFailed",
@@ -39,6 +47,10 @@ __all__ = [
     "VerificationError",
     "VerificationFailure",
     "SurfaceDistanceProbe",
+    "compare_bounds",
+    "compare_scalar",
+    "compare_vector",
+    "match_body_envelopes",
     "run_command",
     "validate_mesh_geometry",
     "verify",
