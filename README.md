@@ -9,8 +9,8 @@ package uses the normal spelling: `cad_verification`.
 
 ## Purpose
 
-This library provides reusable verification mechanics that are useful across
-CAD consumers without becoming a second CI system.
+This library provides reusable CAD verification mechanics and CAD-tool-specific
+verification adapters without becoming a second CI system.
 
 `tool.cad.ci` remains the only CI runner. A consumer can call this library
 from a normal CAD-CI step such as `model_verify`.
@@ -28,11 +28,13 @@ The library owns:
 
 Consumers own:
 
-- which checks a model requires;
-- CAD-engine-specific commands and adapters;
-- expected geometry/history/parameter values;
-- model fixtures and mutation commands;
+- model definitions and the code that produces them;
+- model-specific expected geometry/history/parameter values;
+- model-specific mutation, view and tolerance data;
 - CI configuration and step selection.
+
+The library owns shared knowledge of how those expectations are checked,
+including CAD-tool-specific adapters such as the SolidCraft adapter.
 
 The library does **not** own Git changed-path selection, SCons targets, caching,
 GitHub Actions, publication, Pages, repository scheduling or dependency
@@ -58,8 +60,9 @@ from cad_verification import (
 )
 ~~~
 
-The first consumer will be Forge, but this repository must remain independent
-of Forge and SolidCraft.
+The first consumer is Forge. The package remains independent of Forge model
+code, but may contain SolidCraft-specific verification behavior in the
+SolidCraft adapter.
 
 
 ## Geometry verification
@@ -252,6 +255,18 @@ require_semantic_pass(result)
 The consumer owns check names and which checks are required. The library owns
 only generic status validation, precedence, evidence preservation and
 aggregation.
+
+
+## SolidCraft adapter
+
+CAD-tool-specific verification lives under `cad_verification.adapters`.
+
+Forge keeps model-specific expectation data. The SolidCraft adapter owns how
+that data is checked against SolidCraft measurement/result structures and owns
+the reusable `solidcraft-cli` evaluate/mutate/inspect operations.
+
+The adapter does not import Forge/SCPF and does not contain model-specific
+dimensions or model names.
 
 
 ## Repository CI
