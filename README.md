@@ -2,7 +2,7 @@
 
 Reusable Python library for CAD/model verification.
 
-Current release candidate: **0.6.0**.
+Current release candidate: **0.7.0**.
 
 The repository name keeps the existing `verfication` spelling. The Python
 package uses the normal spelling: `cad_verification`.
@@ -201,6 +201,33 @@ evidence = verify_visual_view(
 The function never renders CAD, selects a view, computes a model camera or
 approves a baseline. A missing baseline is reported explicitly; a regression
 mismatch raises `VerificationFailure` with complete `VisualViewEvidence`.
+
+
+## Exact and predicate requirements
+
+Generic model assertions can preserve stable expected/actual evidence without
+putting the failure mechanic in consumer code:
+
+~~~python
+from cad_verification import require_condition, require_equal
+
+require_equal(
+    {"type": "BoxFeature", "warning": None},
+    timeline_row,
+    label="native timeline row",
+)
+
+require_condition(
+    feature_count == 4,
+    expected=4,
+    actual=feature_count,
+    label="native feature count",
+)
+~~~
+
+These helpers do no CAD interpretation. Consumers own the values and condition;
+the library only validates evidence and raises `VerificationFailure`
+consistently.
 
 
 ## Semantic result composition
