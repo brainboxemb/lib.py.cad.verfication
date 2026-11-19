@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- add CAD-engine-neutral scalar, vector and XYZ-bounds comparison helpers;
+- add immutable measured-body envelopes and order-independent one-to-one matching;
+- preserve deterministic passing/failing comparison evidence through verify();
+- reject invalid numeric values, inverted bounds and negative tolerances explicitly.
+
+
 ## 0.2.0
 
 - add reusable immutable geometry contracts and surface-distance probes;
