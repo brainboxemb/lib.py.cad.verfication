@@ -5,8 +5,8 @@ Implementation details belong in `docs/design.md`.
 
 ## 1. Scope
 
-The library provides reusable mechanics for verifying one already-selected CAD
-model or verification case.
+The library provides reusable mechanics and CAD-engine-specific verification
+adapters for verifying one already-selected CAD model or verification case.
 
 The library is not a CI runner. `tool.cad.ci` remains responsible for
 repository selection, SCons execution, dependency ordering, incremental
@@ -28,14 +28,21 @@ The consumer owns:
 
 - the verification identifier;
 - the model/command input;
-- the ordered list of checks;
-- engine-specific commands;
-- expected values and tolerances;
-- mutation/inspection definitions;
-- engine-specific environment setup.
+- model-specific expected values and tolerances;
+- model-specific mutation definitions;
+- model-specific required views and policy;
+- engine installation/runtime selection.
 
-The library must not contain Forge, SolidCraft, OpenSCAD or other
-engine-specific policy.
+The library owns the shared mechanics for applying those expectations to a CAD
+result. This includes CAD-engine-specific result parsing and checking where the
+same behavior is reusable across consumers.
+
+For SolidCraft, shared knowledge of result/measurement schemas, native
+inspection output and how model expectations are evaluated against that output
+belongs in this library.
+
+The library must not contain Forge model names, Forge model dimensions or other
+model-specific expectations.
 
 ## 3. Verification request
 
@@ -188,7 +195,8 @@ This library does not provide:
 - cache management;
 - build/Pages publication;
 - CAD-engine installation or image creation;
-- model-specific expected values.
+- model-specific expected values;
+- Forge model definitions or Forge compiler behavior.
 
 ## 13. Initial acceptance
 
