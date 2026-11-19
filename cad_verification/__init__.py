@@ -1,5 +1,9 @@
 """Reusable CAD/model verification library."""
 
+from .assertions import (
+    require_condition,
+    require_equal,
+)
 from .comparison import (
     BodyEnvelope,
     compare_bounds,
@@ -95,6 +99,8 @@ __all__ = [
     "match_body_envelopes",
     "normalize_image",
     "project_points",
+    "require_condition",
+    "require_equal",
     "require_semantic_pass",
     "semantic_checks_from_report",
     "run_command",
