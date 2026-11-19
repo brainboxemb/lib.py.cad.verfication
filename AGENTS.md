@@ -9,11 +9,9 @@ verification mechanics.
 
 This repository is an ordinary Python library.
 
-Its own CI must use the generic Python-library CI layer:
-
-```text
-tool.py.lib.ci
-```
+Its own CI uses `tool.py.lib.ci` 0.1.2 at exact commit
+`9045367540102ba2208c517e45a52ddad4bb60ea`, after that revision passed
+`tool.py.lib.ci.test`.
 
 Do not make this repository depend on `tool.cad.ci`, `lib.py.cad.ci` or
 SCons merely to build/test the Python package.
