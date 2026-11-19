@@ -2,7 +2,7 @@
 
 Reusable Python library for CAD/model verification.
 
-Current release candidate: **0.3.0**.
+Current release candidate: **0.4.0**.
 
 The repository name keeps the existing `verfication` spelling. The Python
 package uses the normal spelling: `cad_verification`.
@@ -134,6 +134,45 @@ match_body_envelopes(
 
 Passing comparisons return deterministic evidence. A mismatch raises
 `VerificationFailure` with the same evidence.
+
+
+## Visual verification
+
+The library provides generic visual evidence without rendering CAD itself:
+
+~~~python
+from cad_verification import (
+    ExpectedBox,
+    OrthographicCamera,
+    compare_images,
+    make_goal_image,
+    make_overlay_image,
+    normalize_image,
+)
+
+camera = OrthographicCamera(
+    target=(0, 0, 0),
+    yaw_deg=0,
+    pitch_deg=0,
+    distance=100,
+)
+
+actual = normalize_image("actual.png", 800, 600)
+goal = make_goal_image(
+    (800, 600),
+    camera,
+    boxes=(ExpectedBox((-10, -10, -10), (10, 10, 10)),),
+)
+overlay = make_overlay_image(
+    actual,
+    camera,
+    boxes=(ExpectedBox((-10, -10, -10), (10, 10, 10)),),
+)
+~~~
+
+Consumers own view selection, camera values, approved baselines and expected
+model geometry. The library owns only generic image comparison, projection,
+drawing and evidence.
 
 
 ## Repository CI
