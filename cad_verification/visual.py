@@ -86,6 +86,67 @@ def _label(value: Any) -> str | None:
     return result
 
 
+def _evidence_reference(value: Any, name: str) -> str | None:
+    """Validate one caller-controlled artifact reference."""
+
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise VerificationConfigError(
+            f"{name} must be a string or None"
+        )
+    return value
+
+
+def _normalized_size(value: Any) -> tuple[int, int]:
+    """Validate one requested visual comparison size."""
+
+    if (
+        isinstance(value, (str, bytes))
+        or not isinstance(value, Sequence)
+        or len(value) != 2
+    ):
+        raise VerificationConfigError(
+            "normalized_size must contain width and height"
+        )
+    return (
+        _positive_int(value[0], "normalized width"),
+        _positive_int(value[1], "normalized height"),
+    )
+
+
+def _load_rgb_image(path: Path) -> Image.Image:
+    """Load one detached RGB image with visual evidence error semantics."""
+
+    path = Path(path)
+    if not path.is_file():
+        raise VisualEvidenceError(f"image file does not exist: {path}")
+    try:
+        with Image.open(path) as source:
+            source.load()
+            return source.convert("RGB").copy()
+    except VisualEvidenceError:
+        raise
+    except Exception as exc:
+        raise VisualEvidenceError(
+            f"could not load image: {path}: {exc}"
+        ) from exc
+
+
+def _write_png(image: Image.Image, output_path: Path) -> Path:
+    """Write one deterministic PNG artifact."""
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(
+        output_path,
+        format="PNG",
+        optimize=False,
+        compress_level=9,
+    )
+    return output_path
+
+
 def normalize_image(path: Path, width: int, height: int) -> Image.Image:
     """Load, grayscale and deterministically resize one image."""
 
@@ -744,3 +805,147 @@ class VisualViewEvidence:
             "overlay_image": self.overlay_image,
             "expected_shape_status": self.expected_shape_status,
         }
+
+
+def verify_visual_view(
+    actual_path: Path,
+    *,
+    actual_reference: str | None,
+    baseline_path: Path | None = None,
+    normalized_size: tuple[int, int],
+    changed_pixel_threshold: int,
+    max_mean_difference: float,
+    max_changed_fraction: float,
+    diff_path: Path | None,
+    diff_reference: str | None = None,
+    camera: OrthographicCamera | None = None,
+    boxes: Iterable[ExpectedBox] = (),
+    features: Iterable[ThroughHole | ThroughSlot] = (),
+    goal_path: Path | None = None,
+    goal_reference: str | None = None,
+    overlay_path: Path | None = None,
+    overlay_reference: str | None = None,
+) -> VisualViewEvidence:
+    """Verify one already-rendered consumer visual view.
+
+    The caller owns rendering, view policy, cameras, baselines and expected
+    model geometry. This function only composes the generic visual primitives
+    already provided by this module.
+    """
+
+    actual_reference = _evidence_reference(
+        actual_reference,
+        "actual_reference",
+    )
+    diff_reference = _evidence_reference(
+        diff_reference,
+        "diff_reference",
+    )
+    goal_reference = _evidence_reference(
+        goal_reference,
+        "goal_reference",
+    )
+    overlay_reference = _evidence_reference(
+        overlay_reference,
+        "overlay_reference",
+    )
+    width, height = _normalized_size(normalized_size)
+
+    configured_boxes = tuple(boxes)
+    configured_features = tuple(features)
+    has_expected_geometry = bool(
+        configured_boxes or configured_features
+    )
+
+    if camera is None:
+        if has_expected_geometry:
+            raise VerificationConfigError(
+                "expected geometry requires a camera"
+            )
+        if goal_path is not None or overlay_path is not None:
+            raise VerificationConfigError(
+                "goal/overlay output requires a camera"
+            )
+    else:
+        if not isinstance(camera, OrthographicCamera):
+            raise VerificationConfigError(
+                "camera must be an OrthographicCamera"
+            )
+        if not has_expected_geometry:
+            raise VerificationConfigError(
+                "camera requires expected geometry"
+            )
+        if goal_path is None or overlay_path is None:
+            raise VerificationConfigError(
+                "goal_path and overlay_path are required with a camera"
+            )
+
+    current = normalize_image(actual_path, width, height)
+    baseline_status = "missing"
+    regression: dict[str, Any] | None = None
+    produced_diff_reference: str | None = None
+    regression_failed = False
+
+    baseline = None if baseline_path is None else Path(baseline_path)
+    if baseline is not None and baseline.is_file():
+        if diff_path is None:
+            raise VerificationConfigError(
+                "diff_path is required when comparing a baseline"
+            )
+        reference = normalize_image(baseline, width, height)
+        write_diff_image(current, reference, diff_path)
+        produced_diff_reference = diff_reference
+        try:
+            regression = compare_images(
+                current,
+                reference,
+                changed_pixel_threshold=changed_pixel_threshold,
+                max_mean_difference=max_mean_difference,
+                max_changed_fraction=max_changed_fraction,
+            )
+            baseline_status = "pass"
+        except VerificationFailure as exc:
+            baseline_status = "fail"
+            regression = dict(exc.evidence)
+            regression_failed = True
+
+    expected_shape_status = "missing"
+    produced_goal_reference: str | None = None
+    produced_overlay_reference: str | None = None
+
+    if camera is not None:
+        actual_rgb = _load_rgb_image(actual_path)
+        goal = make_goal_image(
+            actual_rgb.size,
+            camera,
+            boxes=configured_boxes,
+            features=configured_features,
+        )
+        overlay = make_overlay_image(
+            actual_rgb,
+            camera,
+            boxes=configured_boxes,
+            features=configured_features,
+        )
+        _write_png(goal, Path(goal_path))
+        _write_png(overlay, Path(overlay_path))
+        produced_goal_reference = goal_reference
+        produced_overlay_reference = overlay_reference
+        expected_shape_status = "pass"
+
+    evidence = VisualViewEvidence(
+        actual_image=actual_reference,
+        baseline_status=baseline_status,
+        regression=regression,
+        diff_image=produced_diff_reference,
+        goal_image=produced_goal_reference,
+        overlay_image=produced_overlay_reference,
+        expected_shape_status=expected_shape_status,
+    )
+
+    if regression_failed:
+        raise VerificationFailure(
+            "visual view regression exceeds configured limits",
+            evidence=evidence.to_evidence(),
+        )
+    return evidence
