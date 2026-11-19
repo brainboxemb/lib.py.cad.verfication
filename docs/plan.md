@@ -142,3 +142,21 @@ Close #4 when this audit passes and remove this section.
 
 Forge-specific migration remains tracked in
 `lib.py.solidcraft.forge#378` and is not duplicated in this repository plan.
+
+## Open issue assessment — 2026-11-19
+
+| Issue | Status | Assessment |
+| --- | --- | --- |
+| #14 Create and adopt tool.py.lib.ci for Python library CI | now | First task. The tool is released; complete its external test, then migrate this repository off CAD-CI/SCons. |
+| #7 Add reusable geometry and independent-reference verification primitives | blocked / next | PR #12 exists and is green, but merge/release waits for #14 so it is verified through the correct Python-library CI path. |
+| #8 Add reusable numeric and measured-body comparison primitives | next after #7 | Required reusable comparison layer for Forge verification. |
+| #9 Add reusable visual regression and expected-shape overlay primitives | next after #8 | Required to restore Forge visual/baseline/goal evidence without Forge-specific generic code. |
+| #10 Add reusable semantic verification result composition | next after #9 | Required for deterministic aggregate verification results/fan-in. |
+| #4 Expand reusable CAD verification mechanics beyond the foundation | final audit | Close only after #7/#8/#9/#10 are released and the historical ownership map is fully accounted for. |
+
+Immediate execution chain:
+`#14 -> #7 -> #8 -> #9 -> #10 -> #4`.
+
+Forge #378 remains blocked until the required released verification capabilities
+from this chain exist.
+
