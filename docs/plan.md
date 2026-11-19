@@ -11,7 +11,7 @@ Completed sections are removed after their PR and release are finished.
 
 ## 1. Create and adopt generic Python library CI — #14
 
-Create and independently qualify:
+Create and independently test:
 
 ```text
 brainboxemb/tool.py.lib.ci
@@ -22,11 +22,11 @@ depend on CAD-CI or SCons.
 
 Initial responsibilities:
 
-- checkout exact consumer source;
+- checkout the exact library source;
 - set up the requested Python version;
 - build exactly one wheel;
 - install that wheel and declared dependencies in a clean environment;
-- run the consumer's complete unit-test suite against the installed wheel;
+- run the library's complete unit-test suite against the installed wheel;
 - expose clear test/build status;
 - permit release only after green main CI.
 
@@ -43,10 +43,10 @@ After `tool.py.lib.ci` is tested and released:
 
 1. create/use `tool.py.lib.ci.test`;
 2. pin that exact released tool revision there;
-3. black-box prove wheel build, clean install, pass/fail behavior and absence of
+3. prove wheel build, clean install, pass/fail behavior and absence of
    SCons/cache/CAD-CI state.
 
-Only after that acceptance passes:
+Only after that external test passes:
 
 - replace this repository's current `tool.cad.ci` workflow dependency;
 - delete `cad-ci.yml` and `ci/library/ci.yml`;
@@ -66,7 +66,7 @@ Finish and release the geometry/mesh primitives defined by issue #7:
 - bounds, volume, watertightness and surface-distance verification;
 - `bounds_sufficient=False` guard;
 - deterministic structured evidence;
-- pass/fail/error integration with the existing verification report;
+- pass/fail/error handling in the existing verification report;
 - built-wheel tests for every R1-R12 requirement.
 
 After the released `tool.py.lib.ci` path is in use and CI passes:
@@ -85,7 +85,7 @@ Implement the concrete requirements in #8:
 - bounds comparison;
 - order-independent body-envelope matching;
 - structured deterministic evidence;
-- integration with `verify()`;
+- use with `verify()`;
 - no CAD-engine dependency.
 
 Add the corresponding requirements/design/tests before implementation, test the
@@ -131,14 +131,14 @@ After #7, #8, #9 and #10 are released:
 
 - compare the implemented library against the complete historical ownership map
   in #4;
-- confirm every generic historical qualification mechanic has either moved to
+- confirm every generic historical verification mechanic has either moved to
   this library or has an explicit non-library owner;
 - confirm all public APIs are documented;
 - confirm all requirement-to-test mappings are present and green against built
   wheels;
-- confirm consumers only need released library versions.
+- confirm repositories only need released library versions.
 
 Close #4 when this audit passes and remove this section.
 
-Consumer-specific Forge migration remains tracked in
+Forge-specific migration remains tracked in
 `lib.py.solidcraft.forge#378` and is not duplicated in this repository plan.
