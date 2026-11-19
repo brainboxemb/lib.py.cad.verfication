@@ -6,16 +6,33 @@ This file is the current source of truth for unfinished work in
 Detailed requirements live in `docs/requirements.md`. Technical design lives
 in `docs/design.md`.
 
-The repository's own CI migration to `tool.py.lib.ci` 0.1.2 is complete.
-Do not reintroduce CAD-CI/SCons for this library's package tests.
+The repository's own CI migration is complete, and reusable mesh geometry
+verification (#7) is merged. Do not reintroduce repository-local CAD-CI/SCons
+package-test infrastructure.
 
 ## 1. Add numeric and measured-body comparison primitives — #8
 
-Implement scalar, vector, bounds and order-independent body-envelope comparison
-with deterministic evidence and no CAD-engine dependency.
+Current implementation: this branch.
 
-Define/update requirements and design first, test the built wheel, release, then
-close #8.
+Complete and release:
+
+- scalar comparison;
+- vector comparison;
+- XYZ bounds comparison;
+- immutable measured-body envelopes;
+- order-independent one-to-one envelope matching;
+- deterministic structured evidence;
+- `VerificationFailure` integration through `verify()`;
+- explicit rejection of invalid/non-finite numeric input and negative tolerance;
+- no CAD-engine imports in the comparison module;
+- built-wheel tests for issue #8 R1-R6.
+
+After green CI:
+
+1. merge the implementation;
+2. verify release 0.3.0 comes from the tested main commit;
+3. close #8;
+4. remove this section.
 
 ## 2. Add visual regression and expected-shape primitives — #9
 
@@ -36,7 +53,7 @@ No Forge-specific check names or CAD-CI publication behavior belong here.
 
 ## 4. Final reusable-verification audit — #4
 
-After #7, #8, #9 and #10 are released:
+After #8, #9 and #10 are released:
 
 - compare implementation against the historical ownership map in #4;
 - confirm every reusable historical verification mechanic has moved here or has
@@ -50,10 +67,10 @@ Close #4 when the audit passes.
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #8 Add reusable numeric and measured-body comparison primitives | now | Implement the already-defined numeric and body-envelope comparison requirements, test the installed wheel, release, then close. |
+| #8 Add reusable numeric and measured-body comparison primitives | now | Active implementation. Complete, test through the installed wheel, release 0.3.0, then close. |
 | #9 Add reusable visual regression and expected-shape overlay primitives | next | Required to restore Forge visual/baseline/goal evidence generically. |
 | #10 Add reusable semantic verification result composition | after #9 | Required for deterministic aggregate verification results and fan-in. |
-| #4 Expand reusable CAD verification mechanics beyond the foundation | final audit | Close only after #7/#8/#9/#10 are released and the historical ownership map is fully accounted for. |
+| #4 Expand reusable CAD verification mechanics beyond the foundation | final audit | Close only after #8/#9/#10 are released and the historical ownership map is fully accounted for. |
 
 Immediate execution chain:
 `#8 -> #9 -> #10 -> #4 -> Forge #378`.
