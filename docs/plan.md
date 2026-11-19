@@ -9,16 +9,11 @@ single current execution plan.
 
 Completed sections are removed after their PR and release are finished.
 
-## 1. Create and adopt generic Python library CI — #14
+## 1. Adopt released Python library CI — #14
 
-Create and independently test:
-
-```text
-brainboxemb/tool.py.lib.ci
-```
-
-This tool is the generic CI layer for ordinary Python libraries. It must not
-depend on CAD-CI or SCons.
+The generic Python-library CI tool is implemented, released and externally
+tested. Use exact release 0.1.2 at commit
+`9045367540102ba2208c517e45a52ddad4bb60ea`.
 
 Initial responsibilities:
 
@@ -46,9 +41,10 @@ After `tool.py.lib.ci` is tested and released:
 3. prove wheel build, clean install, pass/fail behavior and absence of
    SCons/cache/CAD-CI state.
 
-Only after that external test passes:
+The external test has passed. Current migration:
 
-- replace this repository's current `tool.cad.ci` workflow dependency;
+- replace this repository's current `tool.cad.ci` workflow dependency with
+  `tool.py.lib.ci` 0.1.2;
 - delete `cad-ci.yml` and `ci/library/ci.yml`;
 - confirm CI logs contain no SCons and no `actions/cache`;
 - run this library's complete installed-wheel suite through the released
