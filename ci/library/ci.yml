@@ -1,0 +1,34 @@
+id: cad-verification-library
+kind: library
+
+watch:
+  - cad_verification/**
+  - tests/**
+  - scripts/library_ci.py
+  - pyproject.toml
+  - README.md
+  - AGENTS.md
+  - docs/**
+  - .github/workflows/ci.yml
+
+strategy:
+  reuse: true
+
+steps:
+  - id: build
+    inputs:
+      - cad_verification/**
+      - pyproject.toml
+      - scripts/library_ci.py
+    run: [python, ../../scripts/library_ci.py, build]
+    outputs:
+      - dist
+
+  - id: test
+    inputs:
+      - cad_verification/**
+      - tests/**
+      - scripts/library_ci.py
+    run: [python, ../../scripts/library_ci.py, test]
+    outputs:
+      - test-results.json

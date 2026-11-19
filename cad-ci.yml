@@ -1,0 +1,7 @@
+schema: 1
+
+defaults:
+  timeout_seconds: 300
+
+items:
+  - ci/*
