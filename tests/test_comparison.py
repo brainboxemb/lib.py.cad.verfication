@@ -58,7 +58,7 @@ class ComparisonTests(unittest.TestCase):
 
         with self.assertRaises(VerificationFailure) as caught:
             compare_vector((1, 2, 3), (1, 2.2, 3), 0.1)
-        self.assertEqual(caught.exception.evidence["max_delta"], 0.2)
+        self.assertAlmostEqual(caught.exception.evidence["max_delta"], 0.2)
 
         with self.assertRaises(VerificationConfigError):
             compare_vector((1, 2), (1, 2, 3), 0.1)
