@@ -2,7 +2,7 @@
 
 Reusable Python library for CAD/model verification.
 
-Current release candidate: **0.2.0**.
+Current release candidate: **0.3.0**.
 
 The repository name keeps the existing `verfication` spelling. The Python
 package uses the normal spelling: `cad_verification`.
@@ -99,6 +99,41 @@ evidence = validate_mesh_geometry(Path("reference.stl"), contract)
 A geometry mismatch raises `VerificationFailure`. Missing or unreadable mesh
 data raises `MeshLoadError`. Model-specific expected geometry remains in the
 consumer repository.
+
+
+## Numeric comparison
+
+The library can compare already-measured consumer data without importing a CAD
+engine:
+
+~~~python
+from cad_verification import (
+    BodyEnvelope,
+    compare_bounds,
+    compare_scalar,
+    compare_vector,
+    match_body_envelopes,
+)
+
+compare_scalar(20.0, 20.02, 0.05)
+compare_vector((1, 2, 3), (1.01, 2, 3), 0.05)
+compare_bounds(
+    (0, 0, 0),
+    (10, 20, 30),
+    (0.01, 0, 0),
+    (10, 20, 30),
+    0.05,
+)
+
+match_body_envelopes(
+    (BodyEnvelope((0, 0, 0), (10, 10, 10), "body"),),
+    (BodyEnvelope((0.01, 0, 0), (10.01, 10, 10)),),
+    0.05,
+)
+~~~
+
+Passing comparisons return deterministic evidence. A mismatch raises
+`VerificationFailure` with the same evidence.
 
 
 ## Repository CI
