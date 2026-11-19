@@ -18,7 +18,7 @@ tool.py.lib.ci
 Do not make this repository depend on `tool.cad.ci`, `lib.py.cad.ci` or
 SCons merely to build/test the Python package.
 
-`tool.cad.ci` is for CAD/Forge consumer repositories that need CAD item
+`tool.cad.ci` is for CAD/Forge repositories that need CAD item
 selection, dependency graphs, incremental rebuilds and durable CAD build
 output.
 
@@ -26,7 +26,7 @@ output.
 
 Keep this repository CAD-engine neutral.
 
-Forge, SolidCraft, OpenSCAD and other consumers own their engine adapters,
+Forge, SolidCraft, OpenSCAD and other repositories own their engine adapters,
 commands, expectations and fixtures. Generic execution/result/artifact
 mechanics belong here.
 
@@ -54,8 +54,8 @@ Before changing behaviour:
 3. add or update tests;
 4. implement the smallest code that satisfies the contract.
 
-If a consumer exposes an undefined generic behaviour, stop and update the
-design before coding it into the consumer.
+If a repository exposes an undefined generic behaviour, stop and update the
+design before coding it into that repository.
 
 ## Change quality
 
