@@ -15,6 +15,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import venv
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -93,11 +94,27 @@ def test_package() -> None:
         )
 
     with tempfile.TemporaryDirectory(prefix="cad-verification-test-") as tmp:
-        env = dict(os.environ)
-        env["PYTHONPATH"] = str(wheels[0])
+        temp_root = Path(tmp)
+        environment = temp_root / "venv"
+        venv.EnvBuilder(with_pip=True).create(environment)
+        python = (
+            environment / "Scripts" / "python.exe"
+            if os.name == "nt"
+            else environment / "bin" / "python"
+        )
+        _run(
+            [
+                str(python),
+                "-m",
+                "pip",
+                "install",
+                str(wheels[0]),
+            ],
+            cwd=temp_root,
+        )
         completed = _run(
             [
-                sys.executable,
+                str(python),
                 "-m",
                 "unittest",
                 "discover",
@@ -105,8 +122,7 @@ def test_package() -> None:
                 str(ROOT / "tests"),
                 "-v",
             ],
-            cwd=Path(tmp),
-            env=env,
+            cwd=temp_root,
         )
 
     combined = completed.stdout + "\n" + completed.stderr

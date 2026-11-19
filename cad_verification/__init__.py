@@ -5,9 +5,15 @@ from .errors import (
     CommandError,
     CommandFailed,
     CommandTimedOut,
+    MeshLoadError,
     VerificationConfigError,
     VerificationError,
     VerificationFailure,
+)
+from .geometry import (
+    GeometryContract,
+    SurfaceDistanceProbe,
+    validate_mesh_geometry,
 )
 from .model import (
     CheckOutcome,
@@ -25,11 +31,15 @@ __all__ = [
     "CommandFailed",
     "CommandResult",
     "CommandTimedOut",
+    "GeometryContract",
+    "MeshLoadError",
     "VerificationCheck",
     "VerificationConfigError",
     "VerificationContext",
     "VerificationError",
     "VerificationFailure",
+    "SurfaceDistanceProbe",
     "run_command",
+    "validate_mesh_geometry",
     "verify",
 ]
