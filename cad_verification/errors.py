@@ -25,6 +25,10 @@ class VerificationFailure(VerificationError):
         self.evidence = evidence
 
 
+class MeshLoadError(VerificationError):
+    """Raised when exported mesh data cannot be loaded or measured."""
+
+
 class ArtifactError(VerificationError):
     """Raised when declared verification output is missing or unsafe."""
 

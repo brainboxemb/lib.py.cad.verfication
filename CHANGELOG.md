@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0
+
+- add reusable immutable geometry contracts and surface-distance probes;
+- add STL mesh loading with typed MeshLoadError failures;
+- add bounds, volume, watertightness and nearest-surface probe verification;
+- preserve structured passing and failing geometry evidence;
+- integrate geometry checks with the existing verification report;
+- declare trimesh as an explicit library dependency;
+- test the installed built wheel together with its declared dependencies.
+
+
 ## 0.1.0
 
 - add the reusable CAD verification request/check/result model;

@@ -2,7 +2,7 @@
 
 Reusable Python library for CAD/model verification.
 
-Current release: **0.1.0**.
+Current release candidate: **0.2.0**.
 
 The repository name keeps the existing `verfication` spelling. The Python
 package uses the normal spelling: `cad_verification`.
@@ -60,6 +60,45 @@ from cad_verification import (
 
 The first consumer will be Forge, but this repository must remain independent
 of Forge and SolidCraft.
+
+
+## Geometry verification
+
+The library can validate an already-exported STL against a consumer-owned
+geometry contract:
+
+~~~python
+from pathlib import Path
+
+from cad_verification import (
+    GeometryContract,
+    SurfaceDistanceProbe,
+    validate_mesh_geometry,
+)
+
+contract = GeometryContract(
+    bounds_min=(-5.0, -10.0, -15.0),
+    bounds_max=(5.0, 10.0, 15.0),
+    bounds_tolerance_mm=0.01,
+    volume_mm3=6000.0,
+    volume_tolerance_mm3=0.5,
+    watertight=True,
+    surface_distance_probes=(
+        SurfaceDistanceProbe(
+            "outside-x",
+            (10.0, 0.0, 0.0),
+            5.0,
+            0.01,
+        ),
+    ),
+)
+
+evidence = validate_mesh_geometry(Path("reference.stl"), contract)
+~~~
+
+A geometry mismatch raises `VerificationFailure`. Missing or unreadable mesh
+data raises `MeshLoadError`. Model-specific expected geometry remains in the
+consumer repository.
 
 
 ## Repository CI
