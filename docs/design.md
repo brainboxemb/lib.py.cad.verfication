@@ -967,11 +967,12 @@ verify_solidcraft_measurements(measurements, expectation)
 
 The function builds deterministic section evidence in this order:
 
-1. body envelopes;
-2. parameters;
-3. named bodies;
-4. timeline;
-5. sketches.
+1. body count;
+2. body envelopes;
+3. parameters;
+4. named bodies;
+5. timeline;
+6. sketches.
 
 Only sections present in the expectation are evaluated.
 
