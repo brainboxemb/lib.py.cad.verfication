@@ -22,11 +22,20 @@ output.
 
 ## Domain boundary
 
-Keep this repository CAD-engine neutral.
+This repository owns CAD verification behavior.
 
-Forge, SolidCraft, OpenSCAD and other repositories own their engine adapters,
-commands, expectations and fixtures. Generic execution/result/artifact
-mechanics belong here.
+It contains reusable verification mechanics and CAD-engine-specific verification
+adapters when those adapters are required to inspect or verify a CAD result.
+Shared SolidCraft result schemas, measurement parsing and verification commands
+belong here rather than in Forge.
+
+Consumer repositories such as Forge own only the code/models being verified and
+their model-specific verification data: expected values, tolerances, mutations,
+views and other model policy. They do not own the shared logic that interprets
+or checks those values against SolidCraft.
+
+CI selection, SCons execution, caching, repository orchestration and
+publication remain outside this library.
 
 ## Repository plan
 
