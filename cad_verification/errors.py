@@ -25,6 +25,10 @@ class VerificationFailure(VerificationError):
         self.evidence = evidence
 
 
+class SolidCraftEvidenceError(VerificationError):
+    """Raised when SolidCraft verification evidence is malformed or unreadable."""
+
+
 class MeshLoadError(VerificationError):
     """Raised when exported mesh data cannot be loaded or measured."""
 

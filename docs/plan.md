@@ -8,7 +8,7 @@ in `docs/design.md`.
 
 ## Current status
 
-Released reusable verification layers:
+Released verification layers:
 
 - 0.2.0 — mesh geometry verification (#7);
 - 0.3.0 — numeric and measured-body comparison (#8);
@@ -20,41 +20,32 @@ Released reusable verification layers:
 Release 0.7.0 is published at exact commit
 `a7b2eede634508d3c04a115a201ea91b9d0e2714`.
 
-No additional reusable implementation is currently known to be missing.
+The earlier migration audit issue #4 is closed. Forge #432 exposed one remaining
+ownership error: shared SolidCraft verification knowledge is still present in
+Forge.
 
-## Current work: final migration audit — #4
+## Current work: SolidCraft verification ownership — #32
 
-Forge #378 is consuming the released APIs and removing generic verification
-mechanics that remained in consumer code.
+Goal: keep model-specific verification data in Forge, while moving the shared
+knowledge of how that data is checked against SolidCraft into this library.
 
-Current execution chain:
+Execution order:
 
-1. Forge #434 publishes an immutable runtime containing library 0.7.0.
-2. Forge #432 finishes replacing local comparison/equality/predicate helpers
-   with released library APIs.
-3. Forge #430 resumes visual verification using released
-   `verify_visual_view()`.
-4. Forge completes visual expansion, diagrams and the final verification
-   summary.
-5. Return here for the final ownership-map audit.
-
-Final closure of #4 requires confirming that Forge retains only consumer-owned
-behavior:
-
-- SolidCraft/CAD-engine command adapters and measurement-schema parsing;
-- model-specific expected geometry, parameters, history and mutations;
-- reference source selection/execution;
-- camera/view/baseline/model policy;
-- diagram and publication behavior.
-
-Generic comparisons, evidence/failure mechanics, mesh verification, visual
-verification and semantic composition must come from this library.
+1. update AGENTS/requirements/design for the corrected ownership boundary;
+2. define the smallest public SolidCraft verification API required by current
+   Forge model verification;
+3. add direct built-wheel tests for valid and malformed SolidCraft evidence;
+4. implement SolidCraft parsing/checking here without Forge model knowledge;
+5. release the library;
+6. update Forge #432 to pass model-specific expectations to the released API
+   and delete its local shared SolidCraft verification code;
+7. audit Forge again for remaining shared checker knowledge.
 
 ## Open issue assessment — 2026-11-19
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #4 Expand reusable CAD verification mechanics beyond the foundation | blocked on Forge #378 / final audit | #7/#8/#9/#10/#26/#29 are implemented, directly tested and released. Closure depends only on complete Forge consumption and the final ownership audit. |
+| #32 Own SolidCraft verification adapters in the CAD verification library | now | Required before Forge #432 can continue with the correct ownership boundary. |
 
 Immediate execution chain:
-`Forge #434 -> Forge #432 -> Forge #430 -> Forge #378 remainder -> verification-library #4 final audit -> Forge #366`.
+`verification-library #32 -> release -> Forge #432 -> Forge #430`.

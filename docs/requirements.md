@@ -5,8 +5,8 @@ Implementation details belong in `docs/design.md`.
 
 ## 1. Scope
 
-The library provides reusable mechanics for verifying one already-selected CAD
-model or verification case.
+The library provides reusable mechanics and CAD-engine-specific verification
+adapters for verifying one already-selected CAD model or verification case.
 
 The library is not a CI runner. `tool.cad.ci` remains responsible for
 repository selection, SCons execution, dependency ordering, incremental
@@ -28,14 +28,21 @@ The consumer owns:
 
 - the verification identifier;
 - the model/command input;
-- the ordered list of checks;
-- engine-specific commands;
-- expected values and tolerances;
-- mutation/inspection definitions;
-- engine-specific environment setup.
+- model-specific expected values and tolerances;
+- model-specific mutation definitions;
+- model-specific required views and policy;
+- engine installation/runtime selection.
 
-The library must not contain Forge, SolidCraft, OpenSCAD or other
-engine-specific policy.
+The library owns the shared mechanics for applying those expectations to a CAD
+result. This includes CAD-engine-specific result parsing and checking where the
+same behavior is reusable across consumers.
+
+For SolidCraft, shared knowledge of result/measurement schemas, native
+inspection output and how model expectations are evaluated against that output
+belongs in this library.
+
+The library must not contain Forge model names, Forge model dimensions or other
+model-specific expectations.
 
 ## 3. Verification request
 
@@ -188,7 +195,8 @@ This library does not provide:
 - cache management;
 - build/Pages publication;
 - CAD-engine installation or image creation;
-- model-specific expected values.
+- model-specific expected values;
+- Forge model definitions or Forge compiler behavior.
 
 ## 13. Initial acceptance
 
@@ -470,12 +478,88 @@ The old Forge qualification stack is split as follows:
 - generic visual comparison/projection/overlay -> section 16 / issue #9;
 - generic semantic result composition -> section 17 / issue #10;
 - generic exact-value/predicate failure evidence -> section 18 / issue #29;
-- model-specific geometry, mutations, cameras, baselines and expected shapes
-  remain consumer-owned;
-- reference-CAD execution remains consumer-owned;
+- model-specific geometry values, mutation definitions, cameras, baselines and
+  expected shapes remain consumer-owned data;
+- CAD-tool-specific execution/parsing/checking may live in a verification
+  adapter when it is reusable across consumers;
 - CAD-CI selection/materialization/publication remains `tool.cad.ci`;
 - diagram rendering and site/report publication remain consumer-owned.
 
 No reusable verification behavior is considered migrated merely because Forge
 has a local copy. Each reusable area above must be implemented, tested against
 the built wheel and released before Forge consumes it.
+
+
+## 20. CAD-tool adapters
+
+The library may provide adapters for individual CAD tools under a common
+`cad_verification.adapters` package.
+
+An adapter owns reusable knowledge of how to inspect and verify that CAD tool.
+It may know the tool's command line and result schema. It must not know Forge
+models or other consumer-specific model values.
+
+The first adapter is SolidCraft.
+
+### 20.1 SolidCraft model expectation
+
+Forge or another consumer supplies model-specific data through a
+`SolidCraftModelExpectation`.
+
+The expectation may contain:
+
+- expected body envelopes and their tolerance;
+- expected parameter values;
+- expected timeline rows;
+- expected named-body properties;
+- expected sketch properties.
+
+The expectation contains data only. It does not contain executable checker
+callbacks or SolidCraft JSON field paths.
+
+### 20.2 SolidCraft measurement verification
+
+`verify_solidcraft_measurements(measurements, expectation)` must:
+
+- validate the SolidCraft measurement object before comparing model values;
+- interpret SolidCraft `params`, `bodies`, `bbox`, `timeline` and
+  `sketches` structures inside the adapter;
+- use the existing generic comparison/assertion APIs for numeric and exact
+  comparisons;
+- return deterministic evidence when all requested expectations pass;
+- raise `VerificationFailure` for a genuine model mismatch;
+- raise a verification infrastructure/schema error for malformed or incomplete
+  SolidCraft evidence.
+
+A malformed SolidCraft result must never be silently reduced to fewer bodies or
+converted into an ordinary model mismatch.
+
+### 20.3 SolidCraft command operations
+
+The adapter provides reusable operations for an already-produced native
+SolidCraft model:
+
+- evaluate a saved `.sc` model into a JSON measurement object;
+- apply a saved-design command/mutation to an existing `.sc` model;
+- execute a read-only inspection command and load its JSON result.
+
+The adapter uses the library's existing external-command helper.
+
+Forge compilation/replay into the initial SolidCraft design is not part of this
+adapter. Forge is responsible for producing its model/command document; the
+verification adapter is responsible for checking the resulting SolidCraft
+design.
+
+### 20.4 Adapter boundary
+
+The SolidCraft adapter must not import Forge/SCPF or contain:
+
+- Forge model names;
+- expected dimensions for a Forge example;
+- Forge compiler behavior;
+- CAD-CI/SCons logic;
+- repository selection, caching or publication.
+
+Tests must prove both the public behavior and this dependency boundary.
+
+This work is tracked by issue #32.
