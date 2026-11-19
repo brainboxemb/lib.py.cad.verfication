@@ -5,27 +5,28 @@
 `lib.py.cad.verfication` is the reusable Python library for CAD/model
 verification mechanics.
 
-## Hard boundary
+## CI boundary
 
-`tool.cad.ci` is the only CI runner.
+This repository is an ordinary Python library.
 
-Do not add:
+Its own CI must use the generic Python-library CI layer:
 
-- Git changed-path selection;
-- SCons graph/rebuild logic;
-- cache decisions;
-- GitHub Actions orchestration;
-- repository dependency scheduling;
-- publication or Pages handling.
+```text
+tool.py.lib.ci
+```
 
-This library executes one explicit verification request already selected by
-the caller.
+Do not make this repository depend on `tool.cad.ci`, `lib.py.cad.ci` or
+SCons merely to build/test the Python package.
+
+`tool.cad.ci` is for CAD/Forge repositories that need CAD item
+selection, dependency graphs, incremental rebuilds and durable CAD build
+output.
 
 ## Domain boundary
 
 Keep this repository CAD-engine neutral.
 
-Forge, SolidCraft, OpenSCAD and other consumers own their engine adapters,
+Forge, SolidCraft, OpenSCAD and other repositories own their engine adapters,
 commands, expectations and fixtures. Generic execution/result/artifact
 mechanics belong here.
 
@@ -53,8 +54,8 @@ Before changing behaviour:
 3. add or update tests;
 4. implement the smallest code that satisfies the contract.
 
-If a consumer exposes an undefined generic behaviour, stop and update the
-design before coding it into the consumer.
+If a repository exposes an undefined generic behaviour, stop and update the
+design before coding it into that repository.
 
 ## Change quality
 
