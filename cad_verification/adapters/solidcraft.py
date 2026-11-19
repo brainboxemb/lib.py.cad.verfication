@@ -193,12 +193,15 @@ class SolidCraftBodyExpectation:
 
 @dataclass(frozen=True)
 class SolidCraftTimelineExpectation:
-    """One expected SolidCraft timeline row."""
+    """One expected SolidCraft timeline row with explicit checked fields."""
 
     feature_type: str
     name: str | None = None
+    check_name: bool = False
     error: str | None = None
+    check_error: bool = True
     warning: str | None = None
+    check_warning: bool = True
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -206,25 +209,40 @@ class SolidCraftTimelineExpectation:
             "feature_type",
             _config_text(self.feature_type, "feature_type"),
         )
-        for field_name in ("name", "error", "warning"):
-            object.__setattr__(
-                self,
+
+        for flag_name in ("check_name", "check_error", "check_warning"):
+            if not isinstance(getattr(self, flag_name), bool):
+                raise VerificationConfigError(
+                    f"{flag_name} must be a boolean"
+                )
+
+        for field_name, flag_name in (
+            ("name", "check_name"),
+            ("error", "check_error"),
+            ("warning", "check_warning"),
+        ):
+            value = _config_optional_text(
+                getattr(self, field_name),
                 field_name,
-                _config_optional_text(
-                    getattr(self, field_name),
-                    field_name,
-                ),
             )
+            if not getattr(self, flag_name) and value is not None:
+                raise VerificationConfigError(
+                    f"{field_name} may not be supplied when "
+                    f"{flag_name}=False"
+                )
+            object.__setattr__(self, field_name, value)
 
     def evidence(self) -> dict[str, Any]:
-        """Return the expected row in SolidCraft-neutral evidence shape."""
+        """Return only timeline fields that belong to the model contract."""
 
-        return {
-            "type": self.feature_type,
-            "name": self.name,
-            "error": self.error,
-            "warning": self.warning,
-        }
+        result: dict[str, Any] = {"type": self.feature_type}
+        if self.check_name:
+            result["name"] = self.name
+        if self.check_error:
+            result["error"] = self.error
+        if self.check_warning:
+            result["warning"] = self.warning
+        return result
 
 
 @dataclass(frozen=True)
@@ -730,9 +748,25 @@ def verify_solidcraft_measurements(
             item.evidence()
             for item in expectation.timeline
         ]
+        actual_rows = _timeline_rows(measurements)
+        require_equal(
+            len(expected_timeline),
+            len(actual_rows),
+            label="SolidCraft timeline row count",
+        )
+        projected_actual = [
+            {
+                key: actual[key]
+                for key in expected
+            }
+            for expected, actual in zip(
+                expected_timeline,
+                actual_rows,
+            )
+        ]
         evidence["timeline"] = require_equal(
             expected_timeline,
-            _timeline_rows(measurements),
+            projected_actual,
             label="SolidCraft timeline",
         )
 
