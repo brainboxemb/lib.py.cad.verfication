@@ -25,6 +25,12 @@ def _safe_relative(path: Path, root: Path) -> tuple[Path, Path]:
 
     root = root.resolve()
     candidate = path if path.is_absolute() else root / path
+
+    # Check the authored path before resolving it. Otherwise an in-tree symlink
+    # to another in-tree file would be indistinguishable from the real file.
+    if candidate.is_symlink():
+        raise ArtifactError(f"symlink artifact is not supported: {path}")
+
     candidate = candidate.resolve()
 
     try:
