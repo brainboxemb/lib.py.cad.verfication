@@ -41,6 +41,13 @@ Initial non-goals:
 
 After `tool.py.lib.ci` is tested and released:
 
+1. create/use `tool.py.lib.ci.test`;
+2. pin that exact released tool revision there;
+3. black-box prove wheel build, clean install, pass/fail behavior and absence of
+   SCons/cache/CAD-CI state.
+
+Only after that acceptance passes:
+
 - replace this repository's current `tool.cad.ci` workflow dependency;
 - delete `cad-ci.yml` and `ci/library/ci.yml`;
 - confirm CI logs contain no SCons and no `actions/cache`;
