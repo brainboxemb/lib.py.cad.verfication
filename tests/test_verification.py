@@ -144,6 +144,10 @@ class VerificationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             context = self.context(root)
+
+            with self.assertRaises(VerificationConfigError):
+                verify(context, ())
+
             with self.assertRaises(VerificationConfigError):
                 verify(
                     context,
