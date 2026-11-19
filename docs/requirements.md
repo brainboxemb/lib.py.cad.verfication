@@ -277,7 +277,10 @@ STL loading must:
 
 - reject missing, empty, malformed and non-measurable files with
   `MeshLoadError`;
-- combine measurable parts when trimesh returns a multi-part Scene.
+- combine measurable parts when trimesh returns a multi-part Scene;
+- declare every required mesh-processing dependency explicitly in the package.
+  The current implementation requires `trimesh>=4,<5` and `scipy>=1.12,<2`;
+  consumer runtime packages may not be relied on transitively.
 
 Verification always checks bounds and optionally checks volume,
 watertightness and probes.
