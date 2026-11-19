@@ -38,6 +38,10 @@ def _validate(
         raise VerificationConfigError(
             f"invalid verification id: {context.verification_id!r}"
         )
+    if not checks:
+        raise VerificationConfigError(
+            "verification requires at least one check"
+        )
     _json_value(dict(context.metadata), label="metadata")
 
     seen: set[str] = set()
