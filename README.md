@@ -2,7 +2,7 @@
 
 Reusable Python library for CAD/model verification.
 
-Current release candidate: **0.9.0**.
+Current release candidate: **0.10.0**.
 
 The repository name keeps the existing `verfication` spelling. The Python
 package uses the normal spelling: `cad_verification`.

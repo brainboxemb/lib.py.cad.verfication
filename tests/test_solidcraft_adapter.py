@@ -96,6 +96,7 @@ class SolidCraftAdapterTests(unittest.TestCase):
                 SolidCraftTimelineExpectation(
                     feature_type="BoxFeature",
                     name="Base",
+                    check_name=True,
                     error=None,
                     warning=None,
                 ),
@@ -133,6 +134,67 @@ class SolidCraftAdapterTests(unittest.TestCase):
         self.assertTrue(evidence["named_bodies"][0]["volume"]["pass"])
         self.assertTrue(evidence["timeline"]["pass"])
         self.assertTrue(evidence["sketches"][0]["pass"])
+
+
+    def test_timeline_can_ignore_generated_name(self):
+        data = self.measurements()
+        data["timeline"][0]["name"] = "Box1"
+
+        expectation = SolidCraftModelExpectation(
+            timeline=(
+                SolidCraftTimelineExpectation(
+                    feature_type="BoxFeature",
+                    error=None,
+                    warning=None,
+                ),
+            ),
+        )
+
+        evidence = verify_solidcraft_measurements(data, expectation)
+        self.assertTrue(evidence["timeline"]["pass"])
+        self.assertEqual(
+            evidence["timeline"]["expected"],
+            [
+                {
+                    "type": "BoxFeature",
+                    "error": None,
+                    "warning": None,
+                }
+            ],
+        )
+        self.assertNotIn("name", evidence["timeline"]["actual"][0])
+
+    def test_timeline_name_can_be_checked_explicitly(self):
+        data = self.measurements()
+
+        expectation = SolidCraftModelExpectation(
+            timeline=(
+                SolidCraftTimelineExpectation(
+                    feature_type="BoxFeature",
+                    name="Base",
+                    check_name=True,
+                    error=None,
+                    warning=None,
+                ),
+            ),
+        )
+        self.assertTrue(
+            verify_solidcraft_measurements(data, expectation)["timeline"]["pass"]
+        )
+
+        data["timeline"][0]["name"] = "Box1"
+        with self.assertRaises(VerificationFailure):
+            verify_solidcraft_measurements(data, expectation)
+
+    def test_disabled_timeline_field_rejects_supplied_value(self):
+        from cad_verification import VerificationConfigError
+
+        with self.assertRaises(VerificationConfigError):
+            SolidCraftTimelineExpectation(
+                feature_type="BoxFeature",
+                name="Base",
+                check_name=False,
+            )
 
     def test_model_mismatch_is_verification_failure(self):
         data = self.measurements()

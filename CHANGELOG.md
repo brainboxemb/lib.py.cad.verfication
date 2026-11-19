@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0
+
+- allow SolidCraft timeline expectations to select stable fields explicitly;
+- keep feature type mandatory and timeline order/count strict;
+- ignore generated native feature names by default;
+- retain explicit error and warning checks by default;
+- preserve deterministic evidence containing only fields that belong to the model contract.
+
+
 ## 0.9.0
 
 - add declarative `SolidCraftVerification` model verification;

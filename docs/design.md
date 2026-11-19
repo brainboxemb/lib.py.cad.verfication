@@ -934,8 +934,10 @@ prefix and may request:
 - exact sheet-metal state;
 - exact closed/open state.
 
-A timeline expectation contains semantic fields exposed by SolidCraft:
-feature type, optional name, expected error and expected warning.
+A timeline expectation contains semantic fields exposed by SolidCraft.
+Feature type is always checked. Name/error/warning each have an explicit check
+flag. Generated names are ignored unless `check_name=True`; error and warning
+checks default to enabled.
 
 A sketch expectation identifies one sketch by name and may request profile
 count, curve count and solver status.
@@ -1205,3 +1207,36 @@ VERIFICATION = SolidCraftVerification(
 The consumer-specific launcher may produce the initial `.sc` model and then
 call the runner. It must not copy the baseline/mutation/inspection execution
 logic.
+
+
+## 20. Partial timeline projection
+
+`SolidCraftTimelineExpectation` fields are:
+
+```python
+feature_type: str
+name: str | None = None
+check_name: bool = False
+error: str | None = None
+check_error: bool = True
+warning: str | None = None
+check_warning: bool = True
+```
+
+Configuration validation rejects a non-null value for a field whose check flag
+is false.
+
+`evidence()` returns only fields that participate in comparison, always
+starting with `type`.
+
+During `verify_solidcraft_measurements()`:
+
+1. normalize all actual SolidCraft timeline rows with the existing strict
+   schema validation;
+2. require actual row count to equal expected row count;
+3. for each expected row, project the actual row to exactly the keys returned
+   by that expectation's `evidence()`;
+4. compare the ordered expected/projected lists with `require_equal()`.
+
+The adapter therefore remains strict about timeline structure and order while
+allowing the consumer to omit unstable fields from its model contract.

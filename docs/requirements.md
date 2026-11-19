@@ -514,6 +514,12 @@ The expectation may contain:
 - expected named-body properties;
 - expected sketch properties.
 
+A timeline expectation always checks feature type. Name, error and warning are
+checked only when that field is enabled by the expectation. Generated
+SolidCraft names therefore do not become consumer-owned merely because they are
+present in measurement evidence. Timeline row count and row order remain
+strict.
+
 The expectation contains data only. It does not contain executable checker
 callbacks or SolidCraft JSON field paths.
 
@@ -667,3 +673,26 @@ The declarative runner must not:
 Tests must prove the runner through the installed built wheel before release.
 
 This work is tracked by issue #36.
+
+
+## 22. Partial SolidCraft timeline expectations
+
+`SolidCraftTimelineExpectation` supports field-level timeline contracts.
+
+Rules:
+
+- `feature_type` is always required and always compared;
+- `name` is compared only when `check_name=True`;
+- `error` is compared only when `check_error=True`;
+- `warning` is compared only when `check_warning=True`;
+- default behavior checks `feature_type`, `error` and `warning`, but does
+  not check the generated feature name;
+- supplying a non-null value for a field while its corresponding check flag is
+  false is invalid configuration;
+- timeline row count and order are strict;
+- only enabled fields appear in expected/actual comparison evidence.
+
+This lets a model verify stable SolidCraft behavior without claiming ownership
+of generated native names.
+
+This work is tracked by issue #40.
