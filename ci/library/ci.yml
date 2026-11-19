@@ -5,7 +5,10 @@ watch:
   - cad_verification/**
   - tests/**
   - scripts/library_ci.py
+  - scripts/publish_release.py
   - pyproject.toml
+  - VERSION
+  - CHANGELOG.md
   - README.md
   - AGENTS.md
   - docs/**
@@ -29,6 +32,9 @@ steps:
       - cad_verification/**
       - tests/**
       - scripts/library_ci.py
+      - scripts/publish_release.py
+      - VERSION
+      - CHANGELOG.md
     run: [python, ../../scripts/library_ci.py, test]
     outputs:
       - test-results.json

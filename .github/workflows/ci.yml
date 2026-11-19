@@ -12,3 +12,22 @@ permissions:
 jobs:
   cad-ci:
     uses: brainboxemb/tool.cad.ci/.github/workflows/reusable-ci.yml@e09e86b42ee42c3171b30d031dbb84b939635ad4
+
+  release:
+    needs: cad-ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Publish declared release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/publish_release.py
