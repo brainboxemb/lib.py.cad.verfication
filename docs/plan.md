@@ -9,9 +9,48 @@ single current execution plan.
 
 Completed sections are removed after their PR and release are finished.
 
-## 1. Complete reusable mesh geometry verification — #7
+## 1. Create and adopt generic Python library CI — #14
 
-Current implementation PR: #12.
+Create and independently qualify:
+
+```text
+brainboxemb/tool.py.lib.ci
+```
+
+This tool is the generic CI layer for ordinary Python libraries. It must not
+depend on CAD-CI or SCons.
+
+Initial responsibilities:
+
+- checkout exact consumer source;
+- set up the requested Python version;
+- build exactly one wheel;
+- install that wheel and declared dependencies in a clean environment;
+- run the consumer's complete unit-test suite against the installed wheel;
+- expose clear test/build status;
+- permit release only after green main CI.
+
+Initial non-goals:
+
+- SCons;
+- CAD item selection;
+- CAD dependency graphs;
+- CAD build/Pages publication;
+- Forge/SolidCraft policy;
+- GitHub Actions cache.
+
+After `tool.py.lib.ci` is tested and released:
+
+- replace this repository's current `tool.cad.ci` workflow dependency;
+- delete `cad-ci.yml` and `ci/library/ci.yml`;
+- confirm CI logs contain no SCons and no `actions/cache`;
+- run this library's complete installed-wheel suite through the released
+  `tool.py.lib.ci`;
+- remove this section when #14 is complete.
+
+## 2. Complete reusable mesh geometry verification — #7
+
+Current implementation PR: #12. This PR is blocked until #14 is complete.
 
 Finish and release the geometry/mesh primitives defined by issue #7:
 
@@ -23,14 +62,14 @@ Finish and release the geometry/mesh primitives defined by issue #7:
 - pass/fail/error integration with the existing verification report;
 - built-wheel tests for every R1-R12 requirement.
 
-After CI passes:
+After the released `tool.py.lib.ci` path is in use and CI passes:
 
 1. merge #12;
 2. verify the `0.2.0` release was created from the tested main commit;
 3. close #7;
 4. remove this section.
 
-## 2. Add numeric and measured-body comparison primitives — #8
+## 3. Add numeric and measured-body comparison primitives — #8
 
 Implement the concrete requirements in #8:
 
@@ -45,7 +84,7 @@ Implement the concrete requirements in #8:
 Add the corresponding requirements/design/tests before implementation, test the
 built wheel, release the next library version, close #8 and remove this section.
 
-## 3. Add visual regression and expected-shape primitives — #9
+## 4. Add visual regression and expected-shape primitives — #9
 
 Implement the concrete requirements in #9:
 
@@ -63,7 +102,7 @@ Implement the concrete requirements in #9:
 Add requirements/design/tests first, declare Pillow explicitly, test the built
 wheel, release the next library version, close #9 and remove this section.
 
-## 4. Add semantic verification result composition — #10
+## 5. Add semantic verification result composition — #10
 
 Implement the concrete requirements in #10:
 
@@ -79,7 +118,7 @@ Implement the concrete requirements in #10:
 Add requirements/design/tests first, test the built wheel, release the next
 library version, close #10 and remove this section.
 
-## 5. Final reusable-verification audit — #4
+## 6. Final reusable-verification audit — #4
 
 After #7, #8, #9 and #10 are released:
 
