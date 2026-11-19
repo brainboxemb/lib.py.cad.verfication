@@ -102,6 +102,9 @@ Any other exception is an infrastructure/error result.
 
 ## 4. Sequential semantics
 
+A verification request contains at least one check. A zero-check request is a
+configuration error rather than a vacuous pass.
+
 Checks are deliberately sequential because later CAD verification operations
 often consume artifacts from earlier operations.
 
