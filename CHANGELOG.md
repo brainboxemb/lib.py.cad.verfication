@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+
+- add engine-neutral `require_equal()` for exact expected/actual verification;
+- add strict-boolean `require_condition()` with caller-supplied evidence;
+- preserve deterministic expected/actual/pass evidence on success and failure;
+- keep model semantics and CAD-engine interpretation consumer-owned.
+
+
 ## 0.6.0
 
 - add engine-neutral `verify_visual_view()` for one already-rendered view;
