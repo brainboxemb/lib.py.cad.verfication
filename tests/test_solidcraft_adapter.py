@@ -219,6 +219,64 @@ class SolidCraftAdapterTests(unittest.TestCase):
             {"BoxFeature": 1, "HoleFeature": 0},
         )
 
+    def test_sole_body_expectation_does_not_require_native_name(self):
+        data = self.measurements()
+        body = data["bodies"][0]
+        del body["name"]
+        body["face_types"] = {"cylinder": 2, "plane": 6}
+
+        evidence = verify_solidcraft_measurements(
+            data,
+            SolidCraftModelExpectation(
+                body_count=1,
+                named_bodies=(
+                    SolidCraftBodyExpectation(
+                        volume_mm3=12000.0,
+                        volume_tolerance=0.01,
+                        face_type_counts={"cylinder": 2},
+                        sheet_metal=False,
+                        closed=True,
+                    ),
+                ),
+            ),
+        )
+
+        row = evidence["named_bodies"][0]
+        self.assertEqual(row["selector"], "sole")
+        self.assertNotIn("name_prefix", row)
+        self.assertNotIn("body_name", row)
+        self.assertTrue(row["volume"]["pass"])
+        self.assertTrue(row["face_type_counts"]["pass"])
+        self.assertTrue(row["sheet_metal"]["pass"])
+        self.assertTrue(row["closed"]["pass"])
+
+    def test_sole_body_expectation_requires_exactly_one_body(self):
+        data = self.measurements()
+        data["bodies"].append(
+            {
+                "bbox": {
+                    "min": [30.0, -15.0, 0.0],
+                    "max": [70.0, 15.0, 10.0],
+                },
+                "volume_mm3": 12000.0,
+            }
+        )
+
+        with self.assertRaisesRegex(
+            VerificationFailure,
+            "sole body count",
+        ):
+            verify_solidcraft_measurements(
+                data,
+                SolidCraftModelExpectation(
+                    named_bodies=(
+                        SolidCraftBodyExpectation(
+                            volume_mm3=12000.0,
+                        ),
+                    ),
+                ),
+            )
+
     def test_named_body_face_type_counts_are_partial(self):
         data = self.measurements()
         data["bodies"][0]["face_types"] = {

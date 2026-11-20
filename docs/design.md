@@ -1464,3 +1464,51 @@ list. The raw result remains only in `inspections/<id>/results.json`.
 
 This path/selector mechanism is generic JSON structure handling. It has no
 knowledge of BOM rows, sheet metal, component names or any Forge model.
+
+
+## Sole SolidCraft body selector
+
+Extend the existing body expectation without adding a second property schema:
+
+```python
+@dataclass(frozen=True)
+class SolidCraftBodyExpectation:
+    name_prefix: str | None = None
+    ...
+```
+
+Existing positional and keyword calls with a string remain unchanged.
+
+Verification chooses one of two selector paths:
+
+```text
+name_prefix is str
+  -> validate body names
+  -> select names starting with prefix
+  -> require exactly one match
+
+name_prefix is None
+  -> do not read body names
+  -> require len(validated body rows) == 1
+  -> select bodies[0]
+```
+
+The common property-check path then applies bounds, volume, face-type counts,
+sheet-metal and closed expectations exactly as before.
+
+Evidence uses:
+
+```json
+{"selector": "sole", ...requested property evidence...}
+```
+
+for the sole selector. It does not include a body name. Named selection keeps
+the existing `name_prefix` and actual `body_name` evidence.
+
+Comparison labels use `sole body` for the unnamed selector and the configured
+prefix for named selection.
+
+This preserves the existing error boundary: malformed requested body
+properties are evidence errors; selector count mismatches are normal
+verification failures. Sole selection intentionally does not validate the
+incidental `name` field.

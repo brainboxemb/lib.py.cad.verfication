@@ -904,3 +904,27 @@ artifact but is not copied into projected comparison evidence.
 
 No consumer callbacks, predicates or executable comparison functions are
 supported.
+
+
+## 28. Sole SolidCraft body expectations
+
+`SolidCraftBodyExpectation` supports two exact-one selectors:
+
+- a non-empty `name_prefix`, preserving the existing named-body behavior;
+- `name_prefix=None`, meaning the sole measured body.
+
+For the sole-body selector:
+
+- the measured body collection must contain exactly one row;
+- zero or multiple rows are normal verification mismatches;
+- the body `name` field is not read, required or validated;
+- no body name becomes part of expected policy or comparison evidence;
+- requested bounds, volume, partial face-type counts, `sheet_metal` and
+  `closed` checks use the same semantics as named-body expectations.
+
+For named-body selection, existing strict body-name validation and exact-one
+prefix matching remain unchanged.
+
+Malformed evidence for a property that is actually requested remains
+`SolidCraftEvidenceError`. The sole-body selector must not validate incidental
+unrequested fields merely because they exist.
