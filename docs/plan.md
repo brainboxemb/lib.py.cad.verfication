@@ -26,53 +26,36 @@ These are existing consumer contracts, not speculative API expansion.
 
 ## Current goal
 
-Complete #53 next.
+Complete #60 and release the merged first-batch prerequisite set as 0.11.0.
 
-#44, #45, #51 and #52 are merged. Partial parameter/sketch contracts, count
-projections and multi-body prefix groups are declarative.
-
-#53 is the final first-batch prerequisite. It must express only stable selected
-fields from large SolidCraft inspection objects, including list-object selection,
-collection counts and numeric tolerances.
+The release contains no new behavior beyond already merged #44, #45, #51, #52
+and #53. It exists to make that complete generic contract available as one
+immutable downstream dependency.
 
 ## Required proof
 
-- preserve existing exact whole-result `SolidCraftInspection.expected`;
-- preserve retain-only inspection behavior when no expectation is supplied;
-- projected checks are data only and have stable IDs;
-- paths support object keys, non-negative list indexes and an exact-one list
-  selector by field/value;
-- one projected check performs exactly one operation: exact value, tolerant
-  numeric scalar/vector, or collection count;
-- numeric tolerance supports flat numeric vectors of arbitrary finite length,
-  including the 2D/3D vectors used by existing contracts;
-- list selection is order-independent for keyed rows and requires exactly one
-  match;
-- missing/malformed requested paths are typed evidence errors; a selector count
-  mismatch or value mismatch is a normal verification failure;
-- raw inspection JSON remains the published artifact;
-- deterministic evidence records only requested projections, not incidental raw
-  fields.
+- VERSION and pyproject.toml declare 0.11.0;
+- CHANGELOG documents the merged generic behavior;
+- complete installed-wheel CI passes;
+- main publishes immutable v0.11.0 from the exact green release commit;
+- #44/#45/#51/#52/#53 close as released;
+- docker.cad.solidcraft pin adoption happens in its own repository.
 
 ## Execution order
 
-1. #44 partial parameters.
-2. #45 partial sketches.
-3. #51 declarative count expectations.
-4. #52 body-prefix groups.
-5. #53 projected/tolerant inspections.
-6. Run the complete installed-wheel verification suite.
-7. Release the complete prerequisite set once as the next feature release.
-8. Update `docker.cad.solidcraft` only if that immutable runtime owns the
-   verification-library pin.
-9. Resume the first ~10-case Forge #432 batch.
+1. Prepare 0.11.0 release metadata only.
+2. Run complete library CI.
+3. Merge and verify immutable v0.11.0 publication.
+4. Close the released prerequisite issues.
+5. Update docker.cad.solidcraft to the exact 0.11.0 commit in its own PR.
+6. Resume Forge #432 batch 1.
 
 ## Open issue assessment — 2026-11-20
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #53 Add projected and tolerant declarative SolidCraft inspection expectations | now | Final first-batch prerequisite; #44/#45/#51/#52 are merged. |
+| #60 Release SolidCraft declarative prerequisite set as 0.11.0 | now | All five prerequisite behaviors are merged and green; publish them once as the immutable downstream contract. |
 | #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to the qualification migration. |
 
 Immediate chain:
-`#44 -> #45 -> #51 -> #52 -> #53 -> one verification-library release -> Forge #432 batch 1`.
+`#60 release 0.11.0 -> runtime pin -> Forge #432 batch 1`.
