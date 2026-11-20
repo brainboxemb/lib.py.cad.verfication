@@ -928,3 +928,34 @@ prefix matching remain unchanged.
 Malformed evidence for a property that is actually requested remains
 `SolidCraftEvidenceError`. The sole-body selector must not validate incidental
 unrequested fields merely because they exist.
+
+
+### 20.7 SolidCraft body face-count, center-of-mass and sketch DOF expectations
+
+A `SolidCraftBodyExpectation` may additionally request:
+
+- total body face count;
+- body center of mass as XYZ;
+- a non-negative center-of-mass tolerance.
+
+A `SolidCraftSketchExpectation` may additionally request sketch degrees of
+freedom (DOF).
+
+These fields are optional. When omitted, the adapter must not read, validate or
+include the corresponding SolidCraft evidence field.
+
+When requested:
+
+- face count and DOF are non-negative integer expectations;
+- center-of-mass contains exactly three finite numbers;
+- center-of-mass tolerance is finite and non-negative;
+- the adapter validates the corresponding SolidCraft measurement field before
+  comparing it;
+- value mismatches are normal `VerificationFailure` results;
+- missing, malformed or non-finite requested evidence is a
+  `SolidCraftEvidenceError`;
+- deterministic evidence includes only fields explicitly requested by the
+  consumer.
+
+The consumer owns the expected values and tolerance. The adapter owns the
+SolidCraft field names, parsing and comparison mechanics.
