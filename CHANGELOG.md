@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.0
+
+- add data-only saved-design numeric measurement change expectations;
+- compare existing baseline and mutated measurement paths without re-evaluating
+  the baseline model;
+- use strict absolute-delta thresholds with typed malformed-evidence errors and
+  normal verification failures for insufficient change.
+
+
 ## 0.13.1
 
 - allow body center-of-mass expectations to omit individual XYZ axes with

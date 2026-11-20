@@ -985,3 +985,41 @@ Rules:
 - the existing all-numeric XYZ form remains fully compatible;
 - the one non-negative tolerance applies to every requested axis;
 - evidence identifies only the requested sparse axes.
+
+
+## 29. SolidCraft saved-design numeric change expectations
+
+A `SolidCraftSavedDesign` may declare zero or more
+`SolidCraftMeasurementChangeExpectation` values.
+
+Each change expectation contains:
+
+- a stable engineering `id`;
+- a non-empty JSON measurement `path` made only from object-key strings and
+  non-negative list indexes;
+- a finite non-negative `minimum_absolute_delta`.
+
+The comparison uses the baseline `measurements.json` already produced by the
+baseline check and the saved design's mutated measurements.
+
+For each requested relation:
+
+```text
+absolute_delta = abs(mutated_value - baseline_value)
+pass when absolute_delta > minimum_absolute_delta
+```
+
+The threshold is strict. Equality with the threshold fails.
+
+Both resolved values must be finite numbers. Missing keys, invalid indexes,
+non-object/non-list path containers and non-numeric/non-finite requested values
+are `SolidCraftEvidenceError`.
+
+An insufficient numeric change is a normal `VerificationFailure`.
+
+Evidence records the definition ID, normalized path, baseline value, mutated
+value, absolute delta, threshold and pass/fail comparison.
+
+Saved designs that declare no change expectations retain their current
+behavior exactly. Consumers provide data only; no callback or predicate is
+accepted.

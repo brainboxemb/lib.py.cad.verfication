@@ -1367,12 +1367,60 @@ class SolidCraftInspectionCheck:
 
 
 @dataclass(frozen=True)
+class SolidCraftMeasurementChangeExpectation:
+    """One numeric baseline-to-mutated SolidCraft measurement relation."""
+
+    id: str
+    path: tuple[str | int, ...]
+    minimum_absolute_delta: float
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "id", _identifier(self.id, "change id"))
+        try:
+            raw_path = tuple(self.path)
+        except TypeError as exc:
+            raise VerificationConfigError(
+                "change path must be a sequence of path segments"
+            ) from exc
+        if not raw_path:
+            raise VerificationConfigError("change path may not be empty")
+
+        normalized = []
+        for index, segment in enumerate(raw_path):
+            if isinstance(segment, str):
+                normalized.append(
+                    _config_json_key(segment, f"change path[{index}]")
+                )
+            elif isinstance(segment, int) and not isinstance(segment, bool):
+                if segment < 0:
+                    raise VerificationConfigError(
+                        "change path indexes may not be negative"
+                    )
+                normalized.append(segment)
+            else:
+                raise VerificationConfigError(
+                    "change path segments must be object keys or "
+                    "non-negative indexes"
+                )
+        object.__setattr__(self, "path", tuple(normalized))
+        object.__setattr__(
+            self,
+            "minimum_absolute_delta",
+            _config_tolerance(
+                self.minimum_absolute_delta,
+                "minimum_absolute_delta",
+            ),
+        )
+
+
+@dataclass(frozen=True)
 class SolidCraftSavedDesign:
     """One saved-design mutation and its expected SolidCraft result."""
 
     id: str
     command_path: Path
     expectation: SolidCraftModelExpectation
+    changes: tuple[SolidCraftMeasurementChangeExpectation, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "id", _identifier(self.id, "saved design id"))
@@ -1382,6 +1430,21 @@ class SolidCraftSavedDesign:
                 "saved design expectation must be a "
                 "SolidCraftModelExpectation"
             )
+
+        changes = tuple(self.changes)
+        if not all(
+            isinstance(item, SolidCraftMeasurementChangeExpectation)
+            for item in changes
+        ):
+            raise VerificationConfigError(
+                "saved design changes must contain "
+                "SolidCraftMeasurementChangeExpectation values"
+            )
+        _require_unique_definition_ids(
+            (item.id for item in changes),
+            "saved design change",
+        )
+        object.__setattr__(self, "changes", changes)
 
 
 @dataclass(frozen=True)
@@ -1526,6 +1589,76 @@ def _baseline_check(
     return run
 
 
+def _resolve_measurement_change_path(
+    result: Any,
+    path: tuple[str | int, ...],
+    change_id: str,
+) -> float:
+    """Resolve one numeric SolidCraft measurement path."""
+
+    current = result
+    label = "$"
+    for segment in path:
+        if isinstance(segment, str):
+            mapping = _evidence_mapping(current, label)
+            if segment not in mapping:
+                raise SolidCraftEvidenceError(
+                    f"{label}.{segment} is required"
+                )
+            current = mapping[segment]
+            label = f"{label}.{segment}"
+        else:
+            values = _evidence_list(current, label)
+            if segment >= len(values):
+                raise SolidCraftEvidenceError(
+                    f"{label}[{segment}] is out of range"
+                )
+            current = values[segment]
+            label = f"{label}[{segment}]"
+
+    return _evidence_number(
+        current,
+        f"saved design change {change_id} {label}",
+    )
+
+
+def _measurement_change_evidence(
+    baseline: Mapping[str, Any],
+    mutated: Mapping[str, Any],
+    definition: SolidCraftMeasurementChangeExpectation,
+) -> dict[str, Any]:
+    """Compare one numeric measurement before and after a saved design."""
+
+    baseline_value = _resolve_measurement_change_path(
+        baseline,
+        definition.path,
+        definition.id,
+    )
+    mutated_value = _resolve_measurement_change_path(
+        mutated,
+        definition.path,
+        definition.id,
+    )
+    absolute_delta = abs(mutated_value - baseline_value)
+    comparison = require_condition(
+        absolute_delta > definition.minimum_absolute_delta,
+        expected={
+            "absolute_delta_gt": definition.minimum_absolute_delta,
+        },
+        actual={
+            "baseline": baseline_value,
+            "mutated": mutated_value,
+            "absolute_delta": absolute_delta,
+        },
+        label=f"SolidCraft saved design change {definition.id}",
+    )
+    return {
+        "id": definition.id,
+        "path": list(definition.path),
+        "comparison": comparison,
+    }
+
+
 def _saved_design_check(
     model_path: Path,
     definition: SolidCraftSavedDesign,
@@ -1551,6 +1684,23 @@ def _saved_design_check(
             measurements,
             definition.expectation,
         )
+        if definition.changes:
+            baseline_path = (
+                ctx.output_dir / "baseline" / "measurements.json"
+            )
+            baseline = _load_json(
+                baseline_path,
+                object_required=True,
+            )
+            evidence = dict(evidence)
+            evidence["changes"] = [
+                _measurement_change_evidence(
+                    baseline,
+                    measurements,
+                    change,
+                )
+                for change in definition.changes
+            ]
         return CheckOutcome.passed(
             evidence=evidence,
             artifacts=(changed_model, measurements_path),

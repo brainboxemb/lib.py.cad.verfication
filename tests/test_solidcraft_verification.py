@@ -13,6 +13,7 @@ from cad_verification import (
     SolidCraftInspection,
     SolidCraftInspectionCheck,
     SolidCraftInspectionSelect,
+    SolidCraftMeasurementChangeExpectation,
     SolidCraftModelExpectation,
     SolidCraftSavedDesign,
     SolidCraftVerification,
@@ -203,6 +204,234 @@ class DeclarativeSolidCraftVerificationTests(unittest.TestCase):
                     / "length_60"
                     / "measurements.json"
                 ).is_file()
+            )
+
+    def test_saved_design_numeric_change_reuses_baseline_measurement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            model = root / "model.sc"
+            model.write_text("native", encoding="utf-8")
+            command = root / "length-50.json"
+            command.write_text("{}", encoding="utf-8")
+            output = root / "out"
+
+            definition = SolidCraftVerification(
+                verification_id="simple-box",
+                baseline=_expectation(40.0),
+                saved_designs=(
+                    SolidCraftSavedDesign(
+                        id="length_50",
+                        command_path=command,
+                        expectation=_expectation(50.0),
+                        changes=(
+                            SolidCraftMeasurementChangeExpectation(
+                                id="length_changed",
+                                path=("params", 0, "value"),
+                                minimum_absolute_delta=0.01,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+            def mutate(_source, _command, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text("changed", encoding="utf-8")
+                return destination
+
+            evaluations = []
+
+            def evaluate(_source, destination):
+                evaluations.append(destination)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                data = (
+                    _measurements(50.0)
+                    if "saved_designs" in destination.as_posix()
+                    else _measurements(40.0)
+                )
+                destination.write_text(json.dumps(data), encoding="utf-8")
+                return data
+
+            with (
+                patch.object(
+                    solidcraft_module,
+                    "mutate_solidcraft_model",
+                    side_effect=mutate,
+                ),
+                patch.object(
+                    solidcraft_module,
+                    "evaluate_solidcraft_model",
+                    side_effect=evaluate,
+                ),
+            ):
+                report = run_solidcraft_verification(
+                    model,
+                    output,
+                    definition,
+                )
+
+            self.assertEqual(report["status"], "pass")
+            self.assertEqual(len(evaluations), 2)
+            evidence = report["checks"][1]["evidence"]["changes"][0]
+            self.assertEqual(evidence["id"], "length_changed")
+            self.assertEqual(evidence["path"], ["params", 0, "value"])
+            self.assertEqual(
+                evidence["comparison"]["actual"]["baseline"],
+                40.0,
+            )
+            self.assertEqual(
+                evidence["comparison"]["actual"]["mutated"],
+                50.0,
+            )
+            self.assertEqual(
+                evidence["comparison"]["actual"]["absolute_delta"],
+                10.0,
+            )
+
+    def test_saved_design_numeric_change_threshold_is_strict(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            model = root / "model.sc"
+            model.write_text("native", encoding="utf-8")
+            command = root / "length-50.json"
+            command.write_text("{}", encoding="utf-8")
+
+            definition = SolidCraftVerification(
+                verification_id="simple-box",
+                baseline=_expectation(40.0),
+                saved_designs=(
+                    SolidCraftSavedDesign(
+                        id="length_50",
+                        command_path=command,
+                        expectation=_expectation(50.0),
+                        changes=(
+                            SolidCraftMeasurementChangeExpectation(
+                                id="length_changed",
+                                path=("params", 0, "value"),
+                                minimum_absolute_delta=10.0,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+            def mutate(_source, _command, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text("changed", encoding="utf-8")
+
+            def evaluate(_source, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                data = (
+                    _measurements(50.0)
+                    if "saved_designs" in destination.as_posix()
+                    else _measurements(40.0)
+                )
+                destination.write_text(json.dumps(data), encoding="utf-8")
+                return data
+
+            with (
+                patch.object(
+                    solidcraft_module,
+                    "mutate_solidcraft_model",
+                    side_effect=mutate,
+                ),
+                patch.object(
+                    solidcraft_module,
+                    "evaluate_solidcraft_model",
+                    side_effect=evaluate,
+                ),
+            ):
+                report = run_solidcraft_verification(
+                    model,
+                    root / "out",
+                    definition,
+                )
+
+            self.assertEqual(report["status"], "fail")
+            self.assertEqual(
+                report["checks"][1]["evidence"]["actual"]["absolute_delta"],
+                10.0,
+            )
+
+    def test_saved_design_numeric_change_missing_path_is_evidence_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            model = root / "model.sc"
+            model.write_text("native", encoding="utf-8")
+            command = root / "change.json"
+            command.write_text("{}", encoding="utf-8")
+
+            definition = SolidCraftVerification(
+                verification_id="simple-box",
+                baseline=_expectation(),
+                saved_designs=(
+                    SolidCraftSavedDesign(
+                        id="change",
+                        command_path=command,
+                        expectation=_expectation(),
+                        changes=(
+                            SolidCraftMeasurementChangeExpectation(
+                                id="missing",
+                                path=("bodies", 0, "center_of_mass", 0),
+                                minimum_absolute_delta=0.01,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+            def mutate(_source, _command, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text("changed", encoding="utf-8")
+
+            def evaluate(_source, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                data = _measurements()
+                destination.write_text(json.dumps(data), encoding="utf-8")
+                return data
+
+            with (
+                patch.object(
+                    solidcraft_module,
+                    "mutate_solidcraft_model",
+                    side_effect=mutate,
+                ),
+                patch.object(
+                    solidcraft_module,
+                    "evaluate_solidcraft_model",
+                    side_effect=evaluate,
+                ),
+            ):
+                report = run_solidcraft_verification(
+                    model,
+                    root / "out",
+                    definition,
+                )
+
+            self.assertEqual(report["status"], "error")
+            self.assertIn(
+                "SolidCraftEvidenceError",
+                report["checks"][1]["error"],
+            )
+
+    def test_saved_design_numeric_change_rejects_invalid_configuration(self):
+        with self.assertRaises(VerificationConfigError):
+            SolidCraftMeasurementChangeExpectation(
+                id="bad",
+                path=(),
+                minimum_absolute_delta=0.01,
+            )
+        with self.assertRaises(VerificationConfigError):
+            SolidCraftMeasurementChangeExpectation(
+                id="bad",
+                path=("bodies", -1),
+                minimum_absolute_delta=0.01,
+            )
+        with self.assertRaises(VerificationConfigError):
+            SolidCraftMeasurementChangeExpectation(
+                id="bad",
+                path=("bodies", 0),
+                minimum_absolute_delta=-0.01,
             )
 
     def test_inspection_exact_result_is_verified_and_retained(self):
