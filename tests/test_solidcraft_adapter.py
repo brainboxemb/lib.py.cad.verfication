@@ -12,6 +12,7 @@ from unittest.mock import patch
 from cad_verification import (
     BodyEnvelope,
     SolidCraftBodyExpectation,
+    SolidCraftBodyGroupExpectation,
     SolidCraftEvidenceError,
     SolidCraftModelExpectation,
     SolidCraftSketchExpectation,
@@ -438,6 +439,79 @@ class SolidCraftAdapterTests(unittest.TestCase):
             verify_solidcraft_measurements(
                 data,
                 SolidCraftModelExpectation(parameters={"length": 40.0}),
+            )
+
+    def test_body_group_matches_multiple_prefixed_bodies(self):
+        data = self.measurements()
+        first = data["bodies"][0]
+        first["name"] = "Block"
+        second = {
+            **first,
+            "name": "Block (Block:2)",
+            "bbox": {
+                "min": [20.0, -15.0, 0.0],
+                "max": [60.0, 15.0, 10.0],
+            },
+        }
+        data["bodies"].append(second)
+        data["body_count"] = 2
+
+        expectation = SolidCraftModelExpectation(
+            body_groups=(
+                SolidCraftBodyGroupExpectation(
+                    name_prefix="Block",
+                    count=2,
+                    body_envelopes=(
+                        BodyEnvelope(
+                            (20.0, -15.0, 0.0),
+                            (60.0, 15.0, 10.0),
+                        ),
+                        BodyEnvelope(
+                            (-20.0, -15.0, 0.0),
+                            (20.0, 15.0, 10.0),
+                        ),
+                    ),
+                    bounds_tolerance=0.001,
+                ),
+            ),
+        )
+
+        evidence = verify_solidcraft_measurements(data, expectation)
+        group = evidence["body_groups"][0]
+        self.assertEqual(
+            group["matched_names"],
+            ["Block", "Block (Block:2)"],
+        )
+        self.assertTrue(group["count"]["pass"])
+        self.assertTrue(group["body_envelopes"]["pass"])
+
+    def test_body_group_count_mismatch_fails(self):
+        with self.assertRaises(VerificationFailure):
+            verify_solidcraft_measurements(
+                self.measurements(),
+                SolidCraftModelExpectation(
+                    body_groups=(
+                        SolidCraftBodyGroupExpectation(
+                            name_prefix="Plate",
+                            count=2,
+                        ),
+                    ),
+                ),
+            )
+
+    def test_body_group_envelope_count_must_match_group_count(self):
+        from cad_verification import VerificationConfigError
+
+        with self.assertRaisesRegex(
+            VerificationConfigError,
+            "body_envelopes length",
+        ):
+            SolidCraftBodyGroupExpectation(
+                name_prefix="Block",
+                count=2,
+                body_envelopes=(
+                    BodyEnvelope((0, 0, 0), (1, 1, 1)),
+                ),
             )
 
     def test_named_body_must_match_exactly_once(self):
