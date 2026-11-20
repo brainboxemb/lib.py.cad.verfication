@@ -136,6 +136,59 @@ class SolidCraftAdapterTests(unittest.TestCase):
         self.assertTrue(evidence["sketches"][0]["pass"])
 
 
+    def test_sketch_can_check_only_status(self):
+        data = self.measurements()
+        data["sketches"][0]["profiles"] = 99
+        data["sketches"][0]["curves"] = 123
+
+        expectation = SolidCraftModelExpectation(
+            sketches=(
+                SolidCraftSketchExpectation(
+                    name="Profile",
+                    status="solved",
+                ),
+            ),
+        )
+
+        evidence = verify_solidcraft_measurements(data, expectation)
+        self.assertEqual(
+            evidence["sketches"][0]["expected"],
+            {"name": "Profile", "status": "solved"},
+        )
+        self.assertEqual(
+            evidence["sketches"][0]["actual"],
+            {"name": "Profile", "status": "solved"},
+        )
+
+    def test_partial_sketch_requires_declared_field(self):
+        data = self.measurements()
+        del data["sketches"][0]["status"]
+
+        with self.assertRaisesRegex(
+            SolidCraftEvidenceError,
+            r"sketches\[0\]\.status",
+        ):
+            verify_solidcraft_measurements(
+                data,
+                SolidCraftModelExpectation(
+                    sketches=(
+                        SolidCraftSketchExpectation(
+                            name="Profile",
+                            status="solved",
+                        ),
+                    ),
+                ),
+            )
+
+    def test_sketch_expectation_requires_property_check(self):
+        from cad_verification import VerificationConfigError
+
+        with self.assertRaisesRegex(
+            VerificationConfigError,
+            "at least one property",
+        ):
+            SolidCraftSketchExpectation(name="Profile")
+
     def test_timeline_can_ignore_generated_name(self):
         data = self.measurements()
         data["timeline"][0]["name"] = "Box1"
