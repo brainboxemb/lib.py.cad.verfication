@@ -4,6 +4,7 @@ from importlib import import_module
 
 from .adapters import (
     SolidCraftBodyExpectation,
+    SolidCraftBodyGroupExpectation,
     SolidCraftInspection,
     SolidCraftModelExpectation,
     SolidCraftSavedDesign,
@@ -112,6 +113,7 @@ __all__ = [
     "SemanticCheck",
     "SemanticResultError",
     "SolidCraftBodyExpectation",
+    "SolidCraftBodyGroupExpectation",
     "SolidCraftEvidenceError",
     "SolidCraftInspection",
     "SolidCraftModelExpectation",

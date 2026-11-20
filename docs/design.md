@@ -1364,3 +1364,32 @@ in comparison evidence.
 All three use deterministic sorted mappings and the existing
 `require_equal()` mismatch semantics. No consumer predicates or complete-map
 requirements are introduced.
+
+
+## SolidCraft body groups
+
+Add:
+
+```python
+@dataclass(frozen=True)
+class SolidCraftBodyGroupExpectation:
+    name_prefix: str
+    count: int
+    body_envelopes: tuple[BodyEnvelope, ...] | None = None
+    bounds_tolerance: float = 0.0
+```
+
+`SolidCraftModelExpectation.body_groups` is a tuple of those definitions.
+
+The adapter reuses the same validated body rows/names as named-body matching.
+For each group it:
+
+1. selects all body rows whose name starts with `name_prefix`;
+2. records the matched names;
+3. applies `require_equal(expected_count, actual_count)`;
+4. when configured, converts only matched rows to `BodyEnvelope` and calls the
+   existing `match_body_envelopes()`.
+
+This is deliberately separate from `SolidCraftBodyExpectation`, whose
+exact-one match remains useful and backward compatible for per-body volume,
+face-type, sheet-metal and closed checks.

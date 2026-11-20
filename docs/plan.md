@@ -26,26 +26,28 @@ These are existing consumer contracts, not speculative API expansion.
 
 ## Current goal
 
-Complete #51 next.
+Complete #52 next.
 
-#44 and #45 are merged. Parameter subset matching is explicit and sketch
-properties are independently optional.
+#44, #45 and #51 are merged. Partial parameter/sketch contracts and the required
+count projections are now declarative.
 
-#51 adds only the generic count contracts already present in the next Forge
-batch: total sketch count, selected timeline feature-type counts and selected
-named-body face-type counts.
+#52 preserves existing contracts that identify several occurrence bodies by one
+shared SolidCraft name prefix while also checking their order-independent
+geometry.
 
 ## Required proof
 
-- `sketch_count` checks the total SolidCraft sketch-row count;
-- `timeline_type_counts` checks only requested timeline `type` counts and
-  allows unrelated timeline types;
-- named-body `face_type_counts` checks only requested face types and allows
-  unrelated face types;
-- an absent requested timeline/face type has count zero;
-- malformed requested count evidence remains `SolidCraftEvidenceError`;
-- expected count configuration is non-negative integer data;
-- existing exact timeline, sketch and body expectations remain unchanged.
+- add a dedicated generic body-group expectation; do not change the existing
+  exact-one `SolidCraftBodyExpectation` selector;
+- group selection uses the caller-supplied `name_prefix`;
+- group count is explicit and exact;
+- optional expected body envelopes are order-independent and use existing bounds
+  tolerance semantics;
+- configured envelope count must agree with configured group count;
+- deterministic evidence preserves matched body names plus requested count and
+  geometry comparison;
+- malformed body/name/bounds evidence remains typed;
+- existing single-body expectations remain unchanged.
 
 ## Execution order
 
@@ -64,8 +66,7 @@ named-body face-type counts.
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #51 Add declarative SolidCraft count expectations for measured model/body evidence | now | #44/#45 are merged; this preserves existing partial count contracts without strengthening them to full lists/maps. |
-| #52 Allow declarative expectations for multiple SolidCraft bodies sharing a name prefix | next | Required to preserve existing occurrence/body identity contracts without replacing them by geometry-only checks. |
+| #52 Allow declarative expectations for multiple SolidCraft bodies sharing a name prefix | now | #44/#45/#51 are merged; required for existing Block*/Marker* identity + geometry contracts. |
 | #53 Add projected and tolerant declarative SolidCraft inspection expectations | next | Required for sheet flat-pattern and BOM/component inspections without comparing incidental raw fields. |
 | #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to the qualification migration. |
 
