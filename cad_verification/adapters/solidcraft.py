@@ -291,6 +291,7 @@ class SolidCraftModelExpectation:
     body_envelopes: tuple[BodyEnvelope, ...] | None = None
     bounds_tolerance: float = 0.0
     parameters: Mapping[str, float] | None = None
+    parameter_match: str = "exact"
     named_bodies: tuple[SolidCraftBodyExpectation, ...] = ()
     timeline: tuple[SolidCraftTimelineExpectation, ...] | None = None
     sketches: tuple[SolidCraftSketchExpectation, ...] = ()
@@ -316,6 +317,16 @@ class SolidCraftModelExpectation:
             "bounds_tolerance",
             _config_tolerance(self.bounds_tolerance, "bounds_tolerance"),
         )
+
+        parameter_match = _config_text(
+            self.parameter_match,
+            "parameter_match",
+        )
+        if parameter_match not in {"exact", "subset"}:
+            raise VerificationConfigError(
+                "parameter_match must be 'exact' or 'subset'"
+            )
+        object.__setattr__(self, "parameter_match", parameter_match)
 
         if self.parameters is not None:
             if not isinstance(self.parameters, Mapping):
@@ -658,9 +669,16 @@ def verify_solidcraft_measurements(
         )
 
     if expectation.parameters is not None:
+        actual_parameters = _parameters(measurements)
+        if expectation.parameter_match == "subset":
+            actual_parameters = {
+                name: actual_parameters[name]
+                for name in expectation.parameters
+                if name in actual_parameters
+            }
         evidence["parameters"] = require_equal(
             dict(expectation.parameters),
-            _parameters(measurements),
+            actual_parameters,
             label="SolidCraft parameters",
         )
 

@@ -5,55 +5,70 @@ This file is the current source of truth for unfinished work in
 
 ## Current status
 
-Release 0.10.0 contains the SolidCraft adapter, declarative SolidCraft
-verification and partial timeline expectations.
+Release `0.10.1` is complete. It preserves the public verification API while
+lazy-loading geometry and visual implementation modules for SolidCraft-only
+consumers.
 
-Forge's measured cold simple-box path now shows runtime packaging—not
-verification logic—is the dominant cost:
+Forge's five-case staged proof is complete. The next Forge #432 migration batch
+contains ten existing Qualification cases whose procedural contracts expose the
+remaining reusable SolidCraft semantics needed before the broader catalog can
+move to data-only `verification/verify.py`.
 
-- immutable SolidCraft image pull: 13.307 s in the latest clean run;
-- container start to entry shell: 7.480 s;
-- actual in-runtime verification: 0.747 s.
+The required generic prerequisite set is now explicit:
 
-The package root currently imports geometry and visual modules eagerly even
-when a consumer requests only the SolidCraft API. That unnecessarily couples
-SolidCraft-only runtime packaging to geometry/visual dependencies.
+- #44 — partial parameter expectations;
+- #45 — partial sketch expectations;
+- #51 — declarative count expectations for model/body evidence;
+- #52 — multiple bodies sharing one name prefix;
+- #53 — projected/tolerant inspection expectations.
+
+These are existing consumer contracts, not speculative API expansion.
 
 ## Current goal
 
-Complete #49 as release 0.10.1 by keeping the existing top-level public API
-while loading geometry and visual implementation modules only when one of their
-public names is requested.
+Complete #44 first.
 
-Dependency declarations are intentionally unchanged in this issue.
+Existing released consumers already use
+`SolidCraftModelExpectation(parameters={...})` as an exact full-map contract.
+That behavior must remain backward compatible.
+
+Add an explicit subset parameter matching mode for models whose contract names
+only selected parameters.
 
 ## Required proof
 
-- isolated import of the public SolidCraft API succeeds while imports of
-  trimesh and Pillow are deliberately blocked;
-- geometry and visual implementation modules are absent from sys.modules after
-  that SolidCraft-only import;
-- existing top-level geometry and visual names still resolve correctly;
-- all existing library tests remain green;
-- release 0.10.1 points to the exact tested main commit.
+- existing parameter matching remains exact by default;
+- subset mode requires every requested parameter name to exist;
+- subset mode compares only requested values and allows unrelated actual
+  parameters;
+- deterministic subset evidence contains only requested expected/actual keys;
+- malformed/duplicate parameter evidence remains `SolidCraftEvidenceError`;
+- invalid matching mode is a configuration error;
+- existing adapter and built-wheel tests remain green.
 
 ## Execution order
 
-1. Complete and release #49.
-2. Let docker.cad.solidcraft consume exact 0.10.1 and independently define a
-   lean SolidCraft role dependency set.
-3. Measure the resulting immutable image cold pull/start.
-4. Only then update Forge #484 to the new runtime release.
-5. Complete #44/#45 later when staged model migration reaches those contracts.
+1. #44 partial parameters.
+2. #45 partial sketches.
+3. #51 declarative count expectations.
+4. #52 body-prefix groups.
+5. #53 projected/tolerant inspections.
+6. Run the complete installed-wheel verification suite.
+7. Release the complete prerequisite set once as the next feature release.
+8. Update `docker.cad.solidcraft` only if that immutable runtime owns the
+   verification-library pin.
+9. Resume the first ~10-case Forge #432 batch.
 
 ## Open issue assessment — 2026-11-20
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #49 Avoid loading geometry and visual stacks for SolidCraft-only verification | now | Required import boundary before the SolidCraft runtime can safely omit unrelated heavy packages. |
-| #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup; unrelated to runtime performance. |
-| #44 Allow partial SolidCraft parameter expectations | next | Required only before a model needs subset parameter checks. |
-| #45 Allow partial SolidCraft sketch expectations | next | Required only before a model needs subset sketch checks. |
+| #44 Allow partial SolidCraft parameter expectations | now | First concrete prerequisite for existing Forge contracts that check only named parameters. |
+| #45 Allow partial SolidCraft sketch expectations | next | Required by cases that care about named sketch status but not incidental profile/curve counts. |
+| #51 Add declarative SolidCraft count expectations for measured model/body evidence | next | Required for existing face-type, total sketch and timeline-type count contracts. |
+| #52 Allow declarative expectations for multiple SolidCraft bodies sharing a name prefix | next | Required to preserve existing occurrence/body identity contracts without replacing them by geometry-only checks. |
+| #53 Add projected and tolerant declarative SolidCraft inspection expectations | next | Required for sheet flat-pattern and BOM/component inspections without comparing incidental raw fields. |
+| #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to the qualification migration. |
 
 Immediate chain:
-`#49 lazy imports -> lean docker.cad.solidcraft role -> Forge #484 timing`.
+`#44 -> #45 -> #51 -> #52 -> #53 -> one verification-library release -> Forge #432 batch 1`.

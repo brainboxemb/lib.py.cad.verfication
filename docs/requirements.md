@@ -717,3 +717,35 @@ In particular:
 This requirement allows runtime packagers to construct role-specific
 environments without forcing unrelated geometry/visual stacks into a
 SolidCraft-only process. Dependency packaging remains a separate concern.
+
+
+## 23. Partial SolidCraft parameter expectations
+
+Existing `SolidCraftModelExpectation.parameters` semantics are an exact
+full-map contract and remain backward compatible.
+
+A model expectation may explicitly choose parameter matching mode:
+
+- `exact` — the expected mapping must equal the complete normalized
+  SolidCraft parameter mapping;
+- `subset` — every requested parameter name must be present and equal, while
+  unrelated actual parameters are allowed.
+
+`exact` is the default so already-released consumer definitions retain their
+meaning.
+
+In `subset` mode:
+
+- parameter evidence is normalized through the same strict SolidCraft schema
+  reader as exact mode;
+- duplicate names, malformed rows or non-finite values remain
+  `SolidCraftEvidenceError`;
+- a missing requested name is an ordinary verification mismatch, not malformed
+  SolidCraft evidence;
+- expected/actual comparison evidence contains only requested parameter names,
+  in deterministic key order.
+
+A non-supported parameter matching mode is
+`VerificationConfigError`.
+
+The mode has no effect when no parameter expectation is supplied.

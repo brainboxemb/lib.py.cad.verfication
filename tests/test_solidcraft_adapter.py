@@ -226,6 +226,70 @@ class SolidCraftAdapterTests(unittest.TestCase):
         ):
             verify_solidcraft_measurements(data, expectation)
 
+    def test_parameter_match_exact_remains_default(self):
+        data = self.measurements()
+        data["params"].append({"name": "unrelated", "value": 99.0})
+
+        with self.assertRaises(VerificationFailure):
+            verify_solidcraft_measurements(
+                data,
+                SolidCraftModelExpectation(parameters={"length": 40.0}),
+            )
+
+    def test_parameter_subset_compares_only_requested_names(self):
+        data = self.measurements()
+        expectation = SolidCraftModelExpectation(
+            parameters={"length": 40.0},
+            parameter_match="subset",
+        )
+
+        evidence = verify_solidcraft_measurements(data, expectation)
+
+        self.assertEqual(
+            evidence["parameters"]["expected"],
+            {"length": 40.0},
+        )
+        self.assertEqual(
+            evidence["parameters"]["actual"],
+            {"length": 40.0},
+        )
+        self.assertTrue(evidence["parameters"]["pass"])
+
+    def test_parameter_subset_requires_requested_name(self):
+        with self.assertRaises(VerificationFailure):
+            verify_solidcraft_measurements(
+                self.measurements(),
+                SolidCraftModelExpectation(
+                    parameters={"missing": 1.0},
+                    parameter_match="subset",
+                ),
+            )
+
+    def test_parameter_subset_still_validates_unrelated_rows(self):
+        data = self.measurements()
+        data["params"].append({"name": "broken", "value": "not-a-number"})
+
+        with self.assertRaisesRegex(SolidCraftEvidenceError, r"params\[3\]"):
+            verify_solidcraft_measurements(
+                data,
+                SolidCraftModelExpectation(
+                    parameters={"length": 40.0},
+                    parameter_match="subset",
+                ),
+            )
+
+    def test_invalid_parameter_match_is_configuration_error(self):
+        from cad_verification import VerificationConfigError
+
+        with self.assertRaisesRegex(
+            VerificationConfigError,
+            "parameter_match",
+        ):
+            SolidCraftModelExpectation(
+                parameters={"length": 40.0},
+                parameter_match="loose",
+            )
+
     def test_malformed_parameter_row_is_evidence_error(self):
         data = self.measurements()
         data["params"][0] = {"name": "length", "value": "forty"}
