@@ -811,3 +811,33 @@ count evidence is `SolidCraftEvidenceError`. Count mismatches are normal
 
 These count forms do not replace or change existing exact timeline rows,
 named-sketch expectations or named-body geometry checks.
+
+
+## 26. SolidCraft body-group expectations
+
+Existing `SolidCraftBodyExpectation` semantics remain exact-one selection by
+`name_prefix`.
+
+A separate `SolidCraftBodyGroupExpectation` represents contracts where
+multiple SolidCraft body rows intentionally share a prefix.
+
+A group expectation contains:
+
+- non-empty `name_prefix`;
+- exact non-negative `count`;
+- optional order-independent `body_envelopes`;
+- non-negative `bounds_tolerance`.
+
+If `body_envelopes` is supplied, its length must equal `count`.
+
+Verification selects every body whose validated name starts with the prefix.
+The selected count must equal `count`. When envelopes are supplied, only the
+selected bodies participate in the existing order-independent body-envelope
+comparison.
+
+Evidence records matched body names and the requested count/envelope comparison.
+Malformed selected body names or requested bounds remain
+`SolidCraftEvidenceError`; mismatches remain `VerificationFailure`.
+
+No Forge-specific occurrence naming rule exists in the library beyond the
+caller-supplied prefix string.
