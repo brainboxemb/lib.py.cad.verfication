@@ -250,37 +250,50 @@ class SolidCraftSketchExpectation:
     """One expected SolidCraft sketch summary."""
 
     name: str
-    profiles: int
-    curves: int
-    status: str
+    profiles: int | None = None
+    curves: int | None = None
+    status: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "name", _config_text(self.name, "name"))
-        object.__setattr__(
-            self,
-            "profiles",
-            _config_count(self.profiles, "profiles"),
-        )
-        object.__setattr__(
-            self,
-            "curves",
-            _config_count(self.curves, "curves"),
-        )
-        object.__setattr__(
-            self,
-            "status",
-            _config_text(self.status, "status"),
-        )
+
+        for field_name in ("profiles", "curves"):
+            value = getattr(self, field_name)
+            if value is not None:
+                object.__setattr__(
+                    self,
+                    field_name,
+                    _config_count(value, field_name),
+                )
+
+        if self.status is not None:
+            object.__setattr__(
+                self,
+                "status",
+                _config_text(self.status, "status"),
+            )
+
+        if (
+            self.profiles is None
+            and self.curves is None
+            and self.status is None
+        ):
+            raise VerificationConfigError(
+                "SolidCraftSketchExpectation requires at least one "
+                "property check"
+            )
 
     def evidence(self) -> dict[str, Any]:
         """Return deterministic expected sketch evidence."""
 
-        return {
-            "name": self.name,
-            "profiles": self.profiles,
-            "curves": self.curves,
-            "status": self.status,
-        }
+        result: dict[str, Any] = {"name": self.name}
+        if self.profiles is not None:
+            result["profiles"] = self.profiles
+        if self.curves is not None:
+            result["curves"] = self.curves
+        if self.status is not None:
+            result["status"] = self.status
+        return result
 
 
 @dataclass(frozen=True)
@@ -815,30 +828,29 @@ def verify_solidcraft_measurements(
             index, row = matches[0]
             path = f"sketches[{index}]"
 
-            for field_name in ("profiles", "curves", "status"):
+            expected_evidence = expected.evidence()
+            actual: dict[str, Any] = {"name": expected.name}
+            for field_name in expected_evidence:
+                if field_name == "name":
+                    continue
                 if field_name not in row:
                     raise SolidCraftEvidenceError(
                         f"{path}.{field_name} is required"
                     )
+                if field_name in {"profiles", "curves"}:
+                    actual[field_name] = _actual_count(
+                        row[field_name],
+                        f"{path}.{field_name}",
+                    )
+                else:
+                    actual[field_name] = _evidence_text(
+                        row[field_name],
+                        f"{path}.{field_name}",
+                    )
 
-            actual = {
-                "name": expected.name,
-                "profiles": _actual_count(
-                    row["profiles"],
-                    f"{path}.profiles",
-                ),
-                "curves": _actual_count(
-                    row["curves"],
-                    f"{path}.curves",
-                ),
-                "status": _evidence_text(
-                    row["status"],
-                    f"{path}.status",
-                ),
-            }
             sketch_evidence.append(
                 require_equal(
-                    expected.evidence(),
+                    expected_evidence,
                     actual,
                     label=f"{expected.name} sketch",
                 )
