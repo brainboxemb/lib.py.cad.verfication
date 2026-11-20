@@ -1393,3 +1393,74 @@ For each group it:
 This is deliberately separate from `SolidCraftBodyExpectation`, whose
 exact-one match remains useful and backward compatible for per-body volume,
 face-type, sheet-metal and closed checks.
+
+
+## Projected SolidCraft inspections
+
+Add two data-only public types:
+
+```python
+@dataclass(frozen=True)
+class SolidCraftInspectionSelect:
+    field: str
+    value: JSONScalar
+
+@dataclass(frozen=True)
+class SolidCraftInspectionCheck:
+    id: str
+    path: tuple[str | int | SolidCraftInspectionSelect, ...] = ()
+    expected: Any = <unset>
+    tolerance: float | None = None
+    count: int | None = None
+```
+
+`SolidCraftInspection` gains:
+
+```python
+checks: tuple[SolidCraftInspectionCheck, ...] = ()
+```
+
+Whole-result `expected` and projected `checks` are mutually exclusive.
+
+### Path resolution
+
+Starting with the loaded inspection JSON:
+
+- a string segment requires the current value to be an object and the key to
+  exist;
+- an integer segment requires an array and an in-range non-negative index;
+- a selector requires an array of objects containing the selector field,
+  filters rows by exact scalar equality, requires exactly one match and
+  continues from that object.
+
+The normalized path stored in evidence represents a selector as:
+
+```json
+{"select": {"field": "definition", "value": "Frame"}}
+```
+
+This keeps evidence JSON-compatible and deterministic.
+
+### Check execution
+
+For `count`, the resolved value must be an array or object and
+`require_equal()` compares its length.
+
+For exact `expected` without tolerance, use `require_equal()`.
+
+For tolerant numeric scalar expected values, use the existing
+`compare_scalar()`.
+
+For tolerant flat numeric vectors:
+
+1. validate actual as a JSON array of the same length;
+2. normalize every element as finite numeric data;
+3. compute per-element absolute differences and the maximum difference;
+4. use `require_condition()` with deterministic expected/actual evidence
+   containing value, tolerance and maximum difference.
+
+Projected checks execute in declaration order and produce a stable evidence
+list. The raw result remains only in `inspections/<id>/results.json`.
+
+This path/selector mechanism is generic JSON structure handling. It has no
+knowledge of BOM rows, sheet metal, component names or any Forge model.
