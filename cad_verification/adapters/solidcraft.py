@@ -166,7 +166,11 @@ class SolidCraftBodyExpectation:
     volume_tolerance: float = 0.0
     face_count: int | None = None
     face_type_counts: Mapping[str, int] | None = None
-    center_of_mass: tuple[float, float, float] | None = None
+    center_of_mass: tuple[
+        float | None,
+        float | None,
+        float | None,
+    ] | None = None
     center_of_mass_tolerance: float = 0.0
     sheet_metal: bool | None = None
     closed: bool | None = None
@@ -233,13 +237,20 @@ class SolidCraftBodyExpectation:
                 raise VerificationConfigError(
                     "center_of_mass must contain exactly three numbers"
                 )
+            normalized_center = tuple(
+                None
+                if value is None
+                else _config_number(value, f"center_of_mass[{index}]")
+                for index, value in enumerate(values)
+            )
+            if all(value is None for value in normalized_center):
+                raise VerificationConfigError(
+                    "center_of_mass must request at least one axis"
+                )
             object.__setattr__(
                 self,
                 "center_of_mass",
-                tuple(
-                    _config_number(value, f"center_of_mass[{index}]")
-                    for index, value in enumerate(values)
-                ),
+                normalized_center,
             )
         object.__setattr__(
             self,
@@ -967,21 +978,46 @@ def verify_solidcraft_measurements(
                 if len(raw_center) != 3:
                     raise SolidCraftEvidenceError(
                         f"{path}.center_of_mass must contain exactly "
-                        "three numbers"
+                        "three values"
                     )
-                actual_center = [
-                    _evidence_number(
-                        value,
-                        f"{path}.center_of_mass[{index}]",
+
+                if all(
+                    value is not None
+                    for value in expected.center_of_mass
+                ):
+                    actual_center = [
+                        _evidence_number(
+                            value,
+                            f"{path}.center_of_mass[{index}]",
+                        )
+                        for index, value in enumerate(raw_center)
+                    ]
+                    item_evidence["center_of_mass"] = compare_vector(
+                        expected.center_of_mass,
+                        actual_center,
+                        expected.center_of_mass_tolerance,
+                        label=f"{selector_label} center of mass",
                     )
-                    for index, value in enumerate(raw_center)
-                ]
-                item_evidence["center_of_mass"] = compare_vector(
-                    expected.center_of_mass,
-                    actual_center,
-                    expected.center_of_mass_tolerance,
-                    label=f"{selector_label} center of mass",
-                )
+                else:
+                    components = {}
+                    for index, axis in enumerate(("x", "y", "z")):
+                        expected_value = expected.center_of_mass[index]
+                        if expected_value is None:
+                            continue
+                        components[axis] = compare_scalar(
+                            expected_value,
+                            _evidence_number(
+                                raw_center[index],
+                                f"{path}.center_of_mass[{index}]",
+                            ),
+                            expected.center_of_mass_tolerance,
+                            label=(
+                                f"{selector_label} center of mass {axis}"
+                            ),
+                        )
+                    item_evidence["center_of_mass"] = {
+                        "components": components,
+                    }
 
             if expected.sheet_metal is not None:
                 if "sheet_metal" not in body:
