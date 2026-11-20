@@ -219,6 +219,45 @@ class SolidCraftBodyExpectation:
 
 
 @dataclass(frozen=True)
+class SolidCraftBodyGroupExpectation:
+    """Expect several SolidCraft bodies selected by one name prefix."""
+
+    name_prefix: str
+    count: int
+    body_envelopes: tuple[BodyEnvelope, ...] | None = None
+    bounds_tolerance: float = 0.0
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "name_prefix",
+            _config_text(self.name_prefix, "name_prefix"),
+        )
+        object.__setattr__(
+            self,
+            "count",
+            _config_count(self.count, "count"),
+        )
+        object.__setattr__(
+            self,
+            "bounds_tolerance",
+            _config_tolerance(self.bounds_tolerance, "bounds_tolerance"),
+        )
+
+        if self.body_envelopes is not None:
+            envelopes = tuple(self.body_envelopes)
+            if not all(isinstance(item, BodyEnvelope) for item in envelopes):
+                raise VerificationConfigError(
+                    "body_envelopes must contain BodyEnvelope values"
+                )
+            if len(envelopes) != self.count:
+                raise VerificationConfigError(
+                    "body_envelopes length must equal count"
+                )
+            object.__setattr__(self, "body_envelopes", envelopes)
+
+
+@dataclass(frozen=True)
 class SolidCraftTimelineExpectation:
     """One expected SolidCraft timeline row with explicit checked fields."""
 
@@ -333,6 +372,7 @@ class SolidCraftModelExpectation:
     parameters: Mapping[str, float] | None = None
     parameter_match: str = "exact"
     named_bodies: tuple[SolidCraftBodyExpectation, ...] = ()
+    body_groups: tuple[SolidCraftBodyGroupExpectation, ...] = ()
     timeline_type_counts: Mapping[str, int] | None = None
     timeline: tuple[SolidCraftTimelineExpectation, ...] | None = None
     sketch_count: int | None = None
@@ -417,6 +457,16 @@ class SolidCraftModelExpectation:
             )
         object.__setattr__(self, "named_bodies", named_bodies)
 
+        body_groups = tuple(self.body_groups)
+        if not all(
+            isinstance(item, SolidCraftBodyGroupExpectation)
+            for item in body_groups
+        ):
+            raise VerificationConfigError(
+                "body_groups must contain SolidCraftBodyGroupExpectation values"
+            )
+        object.__setattr__(self, "body_groups", body_groups)
+
         if self.timeline is not None:
             timeline = tuple(self.timeline)
             if not all(
@@ -443,6 +493,7 @@ class SolidCraftModelExpectation:
             and self.body_envelopes is None
             and self.parameters is None
             and not self.named_bodies
+            and not self.body_groups
             and self.timeline_type_counts is None
             and self.timeline is None
             and self.sketch_count is None
@@ -861,6 +912,41 @@ def verify_solidcraft_measurements(
 
             named_evidence.append(item_evidence)
         evidence["named_bodies"] = named_evidence
+
+    if expectation.body_groups:
+        group_evidence = []
+        rows = body_rows()
+        names = [
+            _body_name(row, f"bodies[{index}]")
+            for index, row in enumerate(rows)
+        ]
+        for expected in expectation.body_groups:
+            matches = [
+                (index, row, names[index])
+                for index, row in enumerate(rows)
+                if names[index].startswith(expected.name_prefix)
+            ]
+            item_evidence: dict[str, Any] = {
+                "name_prefix": expected.name_prefix,
+                "matched_names": [name for _, _, name in matches],
+                "count": require_equal(
+                    expected.count,
+                    len(matches),
+                    label=f"{expected.name_prefix} body group count",
+                ),
+            }
+            if expected.body_envelopes is not None:
+                actual_envelopes = tuple(
+                    _body_envelope(row, f"bodies[{index}]")
+                    for index, row, _ in matches
+                )
+                item_evidence["body_envelopes"] = match_body_envelopes(
+                    expected.body_envelopes,
+                    actual_envelopes,
+                    expected.bounds_tolerance,
+                )
+            group_evidence.append(item_evidence)
+        evidence["body_groups"] = group_evidence
 
     if expectation.timeline_type_counts is not None:
         actual_counts = {
