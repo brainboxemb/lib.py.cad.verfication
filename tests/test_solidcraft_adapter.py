@@ -38,6 +38,8 @@ class SolidCraftAdapterTests(unittest.TestCase):
                         "max": [20.0, 15.0, 10.0],
                     },
                     "volume_mm3": 12000.0,
+                    "faces": 6,
+                    "center_of_mass": [0.0, 0.0, 5.0],
                     "sheet_metal": False,
                     "closed": True,
                 }
@@ -60,6 +62,7 @@ class SolidCraftAdapterTests(unittest.TestCase):
                     "name": "Profile",
                     "profiles": 1,
                     "curves": 4,
+                    "dof": 0,
                     "status": "solved",
                 }
             ],
@@ -276,6 +279,162 @@ class SolidCraftAdapterTests(unittest.TestCase):
                     ),
                 ),
             )
+
+    def test_body_face_count_and_center_of_mass_are_optional_checks(self):
+        expectation = SolidCraftModelExpectation(
+            named_bodies=(
+                SolidCraftBodyExpectation(
+                    face_count=6,
+                    center_of_mass=(0.0, 0.0, 5.0),
+                    center_of_mass_tolerance=0.001,
+                ),
+            ),
+        )
+
+        evidence = verify_solidcraft_measurements(
+            self.measurements(),
+            expectation,
+        )
+        row = evidence["named_bodies"][0]
+        self.assertTrue(row["face_count"]["pass"])
+        self.assertTrue(row["center_of_mass"]["pass"])
+        self.assertNotIn("face_type_counts", row)
+
+    def test_body_center_of_mass_uses_tolerance(self):
+        data = self.measurements()
+        data["bodies"][0]["center_of_mass"] = [0.0005, 0.0, 5.0]
+
+        evidence = verify_solidcraft_measurements(
+            data,
+            SolidCraftModelExpectation(
+                named_bodies=(
+                    SolidCraftBodyExpectation(
+                        center_of_mass=(0.0, 0.0, 5.0),
+                        center_of_mass_tolerance=0.001,
+                    ),
+                ),
+            ),
+        )
+        self.assertTrue(
+            evidence["named_bodies"][0]["center_of_mass"]["pass"]
+        )
+
+        with self.assertRaises(VerificationFailure):
+            verify_solidcraft_measurements(
+                data,
+                SolidCraftModelExpectation(
+                    named_bodies=(
+                        SolidCraftBodyExpectation(
+                            center_of_mass=(0.0, 0.0, 5.0),
+                            center_of_mass_tolerance=0.0001,
+                        ),
+                    ),
+                ),
+            )
+
+    def test_requested_body_face_count_requires_integer_evidence(self):
+        data = self.measurements()
+        data["bodies"][0]["faces"] = "six"
+
+        with self.assertRaisesRegex(
+            SolidCraftEvidenceError,
+            r"bodies\[0\]\.faces",
+        ):
+            verify_solidcraft_measurements(
+                data,
+                SolidCraftModelExpectation(
+                    named_bodies=(
+                        SolidCraftBodyExpectation(face_count=6),
+                    ),
+                ),
+            )
+
+    def test_requested_center_of_mass_requires_xyz_numeric_evidence(self):
+        data = self.measurements()
+        data["bodies"][0]["center_of_mass"] = [0.0, 5.0]
+
+        with self.assertRaisesRegex(
+            SolidCraftEvidenceError,
+            "exactly three",
+        ):
+            verify_solidcraft_measurements(
+                data,
+                SolidCraftModelExpectation(
+                    named_bodies=(
+                        SolidCraftBodyExpectation(
+                            center_of_mass=(0.0, 0.0, 5.0),
+                        ),
+                    ),
+                ),
+            )
+
+    def test_body_expectation_rejects_invalid_new_configuration(self):
+        from cad_verification import VerificationConfigError
+
+        with self.assertRaises(VerificationConfigError):
+            SolidCraftBodyExpectation(face_count=-1)
+
+        with self.assertRaisesRegex(
+            VerificationConfigError,
+            "exactly three",
+        ):
+            SolidCraftBodyExpectation(center_of_mass=(0.0, 1.0))
+
+        with self.assertRaises(VerificationConfigError):
+            SolidCraftBodyExpectation(
+                center_of_mass=(0.0, 0.0, 0.0),
+                center_of_mass_tolerance=-0.1,
+            )
+
+    def test_sketch_dof_is_sparse_and_exact(self):
+        expectation = SolidCraftModelExpectation(
+            sketches=(
+                SolidCraftSketchExpectation(
+                    name="Profile",
+                    dof=0,
+                ),
+            ),
+        )
+        evidence = verify_solidcraft_measurements(
+            self.measurements(),
+            expectation,
+        )
+        self.assertEqual(
+            evidence["sketches"][0]["expected"],
+            {"name": "Profile", "dof": 0},
+        )
+        self.assertEqual(
+            evidence["sketches"][0]["actual"],
+            {"name": "Profile", "dof": 0},
+        )
+
+        data = self.measurements()
+        data["sketches"][0]["dof"] = 1
+        with self.assertRaises(VerificationFailure):
+            verify_solidcraft_measurements(data, expectation)
+
+    def test_requested_sketch_dof_requires_non_negative_integer(self):
+        data = self.measurements()
+        data["sketches"][0]["dof"] = "zero"
+        with self.assertRaisesRegex(
+            SolidCraftEvidenceError,
+            r"sketches\[0\]\.dof",
+        ):
+            verify_solidcraft_measurements(
+                data,
+                SolidCraftModelExpectation(
+                    sketches=(
+                        SolidCraftSketchExpectation(
+                            name="Profile",
+                            dof=0,
+                        ),
+                    ),
+                ),
+            )
+
+        from cad_verification import VerificationConfigError
+        with self.assertRaises(VerificationConfigError):
+            SolidCraftSketchExpectation(name="Profile", dof=-1)
 
     def test_named_body_face_type_counts_are_partial(self):
         data = self.measurements()

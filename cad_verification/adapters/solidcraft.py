@@ -19,6 +19,7 @@ from ..comparison import (
     BodyEnvelope,
     compare_bounds,
     compare_scalar,
+    compare_vector,
     match_body_envelopes,
 )
 from ..errors import (
@@ -163,7 +164,10 @@ class SolidCraftBodyExpectation:
     bounds_tolerance: float = 0.0
     volume_mm3: float | None = None
     volume_tolerance: float = 0.0
+    face_count: int | None = None
     face_type_counts: Mapping[str, int] | None = None
+    center_of_mass: tuple[float, float, float] | None = None
+    center_of_mass_tolerance: float = 0.0
     sheet_metal: bool | None = None
     closed: bool | None = None
 
@@ -201,6 +205,13 @@ class SolidCraftBodyExpectation:
             _config_tolerance(self.volume_tolerance, "volume_tolerance"),
         )
 
+        if self.face_count is not None:
+            object.__setattr__(
+                self,
+                "face_count",
+                _config_count(self.face_count, "face_count"),
+            )
+
         if self.face_type_counts is not None:
             object.__setattr__(
                 self,
@@ -210,6 +221,34 @@ class SolidCraftBodyExpectation:
                     "face_type_counts",
                 ),
             )
+
+        if self.center_of_mass is not None:
+            try:
+                values = tuple(self.center_of_mass)
+            except TypeError as exc:
+                raise VerificationConfigError(
+                    "center_of_mass must contain exactly three numbers"
+                ) from exc
+            if len(values) != 3:
+                raise VerificationConfigError(
+                    "center_of_mass must contain exactly three numbers"
+                )
+            object.__setattr__(
+                self,
+                "center_of_mass",
+                tuple(
+                    _config_number(value, f"center_of_mass[{index}]")
+                    for index, value in enumerate(values)
+                ),
+            )
+        object.__setattr__(
+            self,
+            "center_of_mass_tolerance",
+            _config_tolerance(
+                self.center_of_mass_tolerance,
+                "center_of_mass_tolerance",
+            ),
+        )
 
         for name in ("sheet_metal", "closed"):
             value = getattr(self, name)
@@ -319,12 +358,13 @@ class SolidCraftSketchExpectation:
     name: str
     profiles: int | None = None
     curves: int | None = None
+    dof: int | None = None
     status: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "name", _config_text(self.name, "name"))
 
-        for field_name in ("profiles", "curves"):
+        for field_name in ("profiles", "curves", "dof"):
             value = getattr(self, field_name)
             if value is not None:
                 object.__setattr__(
@@ -343,6 +383,7 @@ class SolidCraftSketchExpectation:
         if (
             self.profiles is None
             and self.curves is None
+            and self.dof is None
             and self.status is None
         ):
             raise VerificationConfigError(
@@ -358,6 +399,8 @@ class SolidCraftSketchExpectation:
             result["profiles"] = self.profiles
         if self.curves is not None:
             result["curves"] = self.curves
+        if self.dof is not None:
+            result["dof"] = self.dof
         if self.status is not None:
             result["status"] = self.status
         return result
@@ -877,6 +920,17 @@ def verify_solidcraft_measurements(
                     label=f"{selector_label} volume",
                 )
 
+            if expected.face_count is not None:
+                if "faces" not in body:
+                    raise SolidCraftEvidenceError(
+                        f"{path}.faces is required"
+                    )
+                item_evidence["face_count"] = require_equal(
+                    expected.face_count,
+                    _actual_count(body["faces"], f"{path}.faces"),
+                    label=f"{selector_label} face count",
+                )
+
             if expected.face_type_counts is not None:
                 if "face_types" not in body:
                     raise SolidCraftEvidenceError(
@@ -899,6 +953,34 @@ def verify_solidcraft_measurements(
                     dict(expected.face_type_counts),
                     actual_face_types,
                     label=f"{selector_label} face type counts",
+                )
+
+            if expected.center_of_mass is not None:
+                if "center_of_mass" not in body:
+                    raise SolidCraftEvidenceError(
+                        f"{path}.center_of_mass is required"
+                    )
+                raw_center = _evidence_list(
+                    body["center_of_mass"],
+                    f"{path}.center_of_mass",
+                )
+                if len(raw_center) != 3:
+                    raise SolidCraftEvidenceError(
+                        f"{path}.center_of_mass must contain exactly "
+                        "three numbers"
+                    )
+                actual_center = [
+                    _evidence_number(
+                        value,
+                        f"{path}.center_of_mass[{index}]",
+                    )
+                    for index, value in enumerate(raw_center)
+                ]
+                item_evidence["center_of_mass"] = compare_vector(
+                    expected.center_of_mass,
+                    actual_center,
+                    expected.center_of_mass_tolerance,
+                    label=f"{selector_label} center of mass",
                 )
 
             if expected.sheet_metal is not None:
@@ -1050,7 +1132,7 @@ def verify_solidcraft_measurements(
                     raise SolidCraftEvidenceError(
                         f"{path}.{field_name} is required"
                     )
-                if field_name in {"profiles", "curves"}:
+                if field_name in {"profiles", "curves", "dof"}:
                     actual[field_name] = _actual_count(
                         row[field_name],
                         f"{path}.{field_name}",

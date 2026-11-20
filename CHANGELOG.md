@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.13.0
+
+- add optional total face-count expectations for selected SolidCraft bodies;
+- add optional body center-of-mass expectations with explicit numeric tolerance;
+- add optional SolidCraft sketch DOF expectations;
+- keep all three fields sparse: omitted fields are neither parsed nor included
+  in evidence;
+- report malformed requested SolidCraft fields as typed evidence errors and
+  model-value mismatches as normal verification failures.
+
+
 ## 0.12.0
 
 - allow `SolidCraftBodyExpectation(name_prefix=None)` to select the sole
