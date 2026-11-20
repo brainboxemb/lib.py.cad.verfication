@@ -1512,3 +1512,39 @@ This preserves the existing error boundary: malformed requested body
 properties are evidence errors; selector count mismatches are normal
 verification failures. Sole selection intentionally does not validate the
 incidental `name` field.
+
+
+## SolidCraft additional measured fields
+
+Issue #69 extends the existing data-only expectation objects without adding a
+new checker type.
+
+`SolidCraftBodyExpectation` adds:
+
+```python
+face_count: int | None = None
+center_of_mass: tuple[float, float, float] | None = None
+center_of_mass_tolerance: float = 0.0
+```
+
+`SolidCraftSketchExpectation` adds:
+
+```python
+dof: int | None = None
+```
+
+Configuration normalization reuses the adapter's existing finite-number,
+non-negative tolerance and non-negative integer validators. Center of mass is
+normalized to an exact three-value float tuple.
+
+During body verification the adapter reads `faces` only when `face_count` is
+requested and reads `center_of_mass` only when that vector is requested.
+Face count uses exact equality. Center of mass uses the existing numeric-vector
+comparison semantics and the caller-supplied tolerance.
+
+During sketch verification the adapter reads `dof` only when requested and
+uses exact integer equality.
+
+Evidence mirrors the existing sparse expectation model: omitted fields are not
+validated and do not appear in expected/actual evidence. This prevents
+incidental SolidCraft fields from becoming part of a model contract.
