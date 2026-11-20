@@ -5,42 +5,53 @@ This file is the current source of truth for unfinished work in
 
 ## Current status
 
-Release `0.11.0` is complete. The full Forge batch-1 contract audit then found
-one additional generic selector gap: model contracts that inspect properties
-of the sole measured body without asserting its generated native name.
+Release `0.12.0` is complete and is already consumed by Forge through the
+released CAD verification wheel dependency.
 
-#65 is merged at `7897b553a81c98d0ac93989446959b7156aca61f`.
+Forge #542 is the next declarative migration batch. Its procedural contracts
+expose three remaining reusable SolidCraft expectation fields that are not yet
+represented declaratively:
+
+- total body face count;
+- body center of mass with tolerance;
+- sketch degrees of freedom (DOF).
+
+These are generic SolidCraft result checks and therefore belong in this library,
+not in Forge.
 
 ## Current goal
 
-Complete #67 and release the sole-body selector as 0.12.0.
-
-No verification behavior is added in the release change.
+Complete #69 and release the new expectation fields as `0.13.0`.
 
 ## Required proof
 
-- VERSION and pyproject.toml declare 0.12.0;
-- CHANGELOG documents the sole-body selector;
-- complete installed-wheel CI passes;
-- main publishes immutable v0.12.0 from the exact green release commit;
-- docker.cad.solidcraft #12 updates to this exact release;
-- Forge #537 starts only after the immutable runtime pin is green.
+- `SolidCraftBodyExpectation` supports optional total face count and
+  center-of-mass + tolerance;
+- `SolidCraftSketchExpectation` supports optional DOF;
+- omitted fields remain completely unchecked;
+- requested malformed/missing evidence is a typed SolidCraft evidence error;
+- value mismatches are normal verification failures;
+- deterministic evidence contains only requested fields;
+- complete source and installed-wheel CI passes;
+- immutable `0.13.0` is published from the exact green release commit;
+- Forge #542 consumes the released version before migrating its ten cases.
 
 ## Execution order
 
-1. Prepare 0.12.0 release metadata only.
-2. Run complete library CI.
-3. Merge and verify immutable v0.12.0 publication.
-4. Update docker.cad.solidcraft #12 from 0.11.0 to exact 0.12.0.
-5. Release runtime v0.3.1.
-6. Resume Forge #537 batch 1.
+1. Define #69 behavior in requirements/design.
+2. Add adapter unit tests for configuration, pass, mismatch and malformed
+   evidence.
+3. Implement the smallest adapter change.
+4. Release immutable `0.13.0`.
+5. Resume Forge #542.
 
 ## Open issue assessment — 2026-11-20
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #67 Release sole-body selector as 0.12.0 | now | Final generic batch-1 prerequisite is merged; publish it immutably. |
-| #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to qualification migration. |
+| #69 Support body center/face-count and sketch DOF expectations | now | Generic prerequisite for Forge #542; implement/test/release as 0.13.0. |
+| #63 Update repository plan after verification 0.11.0 release | probably obsolete | Superseded by later 0.12.0 state and this current plan refresh. |
+| #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to Forge #542. |
 
 Immediate chain:
-`#67 verification 0.12.0 -> runtime v0.3.1 -> Forge #537 batch 1`.
+`#69 verification 0.13.0 -> Forge #542 next ten declarative cases`.
