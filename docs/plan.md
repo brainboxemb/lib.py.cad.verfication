@@ -5,57 +5,50 @@ This file is the current source of truth for unfinished work in
 
 ## Current status
 
-Release `0.10.1` is complete. It preserves the public verification API while
-lazy-loading geometry and visual implementation modules for SolidCraft-only
-consumers.
+Release `0.11.0` is complete at exact commit
+`9f2802816637d944c88815352ecadb72e78027f5`.
 
-Forge's five-case staged proof is complete. The next Forge #432 migration batch
-contains ten existing Qualification cases whose procedural contracts expose the
-remaining reusable SolidCraft semantics needed before the broader catalog can
-move to data-only `verification/verify.py`.
-
-The required generic prerequisite set is now explicit:
-
-- #44 — partial parameter expectations;
-- #45 — partial sketch expectations;
-- #51 — declarative count expectations for model/body evidence;
-- #52 — multiple bodies sharing one name prefix;
-- #53 — projected/tolerant inspection expectations.
-
-These are existing consumer contracts, not speculative API expansion.
+A full audit of the first post-proof Forge #432 batch found one additional
+existing consumer contract that 0.11.0 cannot express without adding
+incidental policy: several one-body models verify volume/face/sheet properties
+of the sole body without asserting its generated native body name.
 
 ## Current goal
 
-Complete #60 and release the merged first-batch prerequisite set as 0.11.0.
+Complete #65: allow `SolidCraftBodyExpectation` to select the sole measured
+body without requiring or validating a native body name.
 
-The release contains no new behavior beyond already merged #44, #45, #51, #52
-and #53. It exists to make that complete generic contract available as one
-immutable downstream dependency.
+This is the final prerequisite found by the complete batch-1 contract audit.
 
 ## Required proof
 
-- VERSION and pyproject.toml declare 0.11.0;
-- CHANGELOG documents the merged generic behavior;
-- complete installed-wheel CI passes;
-- main publishes immutable v0.11.0 from the exact green release commit;
-- #44/#45/#51/#52/#53 close as released;
-- docker.cad.solidcraft pin adoption happens in its own repository.
+- existing non-empty `name_prefix` selection remains unchanged;
+- `name_prefix=None` selects the sole body and requires exactly one body;
+- sole-body selection does not read or validate the body's `name` field;
+- zero/multiple bodies are normal verification mismatches;
+- requested bounds, volume, face-type, sheet-metal and closed checks reuse
+  existing semantics;
+- deterministic evidence identifies the selector as `sole` without adding a
+  body name to expected policy;
+- malformed requested property evidence remains typed;
+- complete installed-wheel suite stays green.
 
 ## Execution order
 
-1. Prepare 0.11.0 release metadata only.
-2. Run complete library CI.
-3. Merge and verify immutable v0.11.0 publication.
-4. Close the released prerequisite issues.
-5. Update docker.cad.solidcraft to the exact 0.11.0 commit in its own PR.
-6. Resume Forge #432 batch 1.
+1. Define sole-body semantics in requirements/design.
+2. Add focused adapter tests.
+3. Implement the smallest backward-compatible selector extension.
+4. Run the complete library suite.
+5. Release the resulting API as 0.12.0.
+6. Update docker.cad.solidcraft runtime patch release to the exact 0.12.0 pin.
+7. Resume Forge #537 batch 1.
 
 ## Open issue assessment — 2026-11-20
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #60 Release SolidCraft declarative prerequisite set as 0.11.0 | now | All five prerequisite behaviors are merged and green; publish them once as the immutable downstream contract. |
-| #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to the qualification migration. |
+| #65 Allow declarative expectations for the sole SolidCraft body without naming it | now | Final generic gap found by full Forge batch-1 contract audit. |
+| #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to qualification migration. |
 
 Immediate chain:
-`#60 release 0.11.0 -> runtime pin -> Forge #432 batch 1`.
+`#65 -> verification 0.12.0 -> runtime pin -> Forge #537 batch 1`.
