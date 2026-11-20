@@ -11,6 +11,8 @@ from unittest.mock import patch
 
 from cad_verification import (
     SolidCraftInspection,
+    SolidCraftInspectionCheck,
+    SolidCraftInspectionSelect,
     SolidCraftModelExpectation,
     SolidCraftSavedDesign,
     SolidCraftVerification,
@@ -272,6 +274,296 @@ class DeclarativeSolidCraftVerificationTests(unittest.TestCase):
                 / "inspections"
                 / "components"
                 / "results.json",
+            )
+
+    def test_projected_inspection_checks_select_and_compare_stable_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            model = root / "model.sc"
+            model.write_text("native", encoding="utf-8")
+            command = root / "inspect.json"
+            command.write_text("{}", encoding="utf-8")
+            output = root / "out"
+
+            result = [
+                {
+                    "rows": [
+                        {"definition": "Panel", "count": 2, "id": 99},
+                        {"definition": "Frame", "count": 1, "id": 42},
+                    ],
+                    "flat_size": [80.0004, 40.0, 2.0],
+                    "center": [-20.0004, 0.0003],
+                    "metadata": {"rule": "A", "revision": "ignored"},
+                }
+            ]
+            definition = SolidCraftVerification(
+                verification_id="inspection-model",
+                baseline=_expectation(),
+                inspections=(
+                    SolidCraftInspection(
+                        id="projected",
+                        command_path=command,
+                        checks=(
+                            SolidCraftInspectionCheck(
+                                id="root_count",
+                                count=1,
+                            ),
+                            SolidCraftInspectionCheck(
+                                id="rows_count",
+                                path=(0, "rows"),
+                                count=2,
+                            ),
+                            SolidCraftInspectionCheck(
+                                id="frame_count",
+                                path=(
+                                    0,
+                                    "rows",
+                                    SolidCraftInspectionSelect(
+                                        "definition",
+                                        "Frame",
+                                    ),
+                                    "count",
+                                ),
+                                expected=1,
+                            ),
+                            SolidCraftInspectionCheck(
+                                id="flat_size",
+                                path=(0, "flat_size"),
+                                expected=[80.0, 40.0, 2.0],
+                                tolerance=0.001,
+                            ),
+                            SolidCraftInspectionCheck(
+                                id="center",
+                                path=(0, "center"),
+                                expected=[-20.0, 0.0],
+                                tolerance=0.001,
+                            ),
+                            SolidCraftInspectionCheck(
+                                id="metadata_count",
+                                path=(0, "metadata"),
+                                count=2,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+            def evaluate(_source, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                data = _measurements()
+                destination.write_text(json.dumps(data), encoding="utf-8")
+                return data
+
+            def inspect_model(_source, _command, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text(json.dumps(result), encoding="utf-8")
+                return result
+
+            with (
+                patch.object(
+                    solidcraft_module,
+                    "evaluate_solidcraft_model",
+                    side_effect=evaluate,
+                ),
+                patch.object(
+                    solidcraft_module,
+                    "inspect_solidcraft_model",
+                    side_effect=inspect_model,
+                ),
+            ):
+                report = run_solidcraft_verification(
+                    model,
+                    output,
+                    definition,
+                )
+
+            self.assertEqual(report["status"], "pass")
+            evidence = report["checks"][-1]["evidence"]
+            self.assertEqual(
+                [row["id"] for row in evidence["checks"]],
+                [
+                    "root_count",
+                    "rows_count",
+                    "frame_count",
+                    "flat_size",
+                    "center",
+                    "metadata_count",
+                ],
+            )
+            self.assertEqual(
+                evidence["checks"][2]["path"][2],
+                {
+                    "select": {
+                        "field": "definition",
+                        "value": "Frame",
+                    }
+                },
+            )
+            self.assertNotIn("id", json.dumps(evidence))
+            self.assertTrue(
+                (
+                    output
+                    / "inspections"
+                    / "projected"
+                    / "results.json"
+                ).is_file()
+            )
+
+    def test_projected_inspection_selector_mismatch_is_verification_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            model = root / "model.sc"
+            model.write_text("native", encoding="utf-8")
+            command = root / "inspect.json"
+            command.write_text("{}", encoding="utf-8")
+            result = [{"rows": [{"definition": "Panel", "count": 2}]}]
+
+            definition = SolidCraftVerification(
+                verification_id="inspection-model",
+                baseline=_expectation(),
+                inspections=(
+                    SolidCraftInspection(
+                        id="projected",
+                        command_path=command,
+                        checks=(
+                            SolidCraftInspectionCheck(
+                                id="frame",
+                                path=(
+                                    0,
+                                    "rows",
+                                    SolidCraftInspectionSelect(
+                                        "definition",
+                                        "Frame",
+                                    ),
+                                    "count",
+                                ),
+                                expected=1,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+            def evaluate(_source, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                data = _measurements()
+                destination.write_text(json.dumps(data), encoding="utf-8")
+                return data
+
+            def inspect_model(_source, _command, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text(json.dumps(result), encoding="utf-8")
+                return result
+
+            with (
+                patch.object(
+                    solidcraft_module,
+                    "evaluate_solidcraft_model",
+                    side_effect=evaluate,
+                ),
+                patch.object(
+                    solidcraft_module,
+                    "inspect_solidcraft_model",
+                    side_effect=inspect_model,
+                ),
+            ):
+                report = run_solidcraft_verification(
+                    model,
+                    root / "out",
+                    definition,
+                )
+
+            self.assertEqual(report["status"], "fail")
+            self.assertEqual(report["checks"][-1]["status"], "fail")
+
+    def test_projected_inspection_missing_path_is_evidence_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            model = root / "model.sc"
+            model.write_text("native", encoding="utf-8")
+            command = root / "inspect.json"
+            command.write_text("{}", encoding="utf-8")
+            result = [{"value": 1}]
+
+            definition = SolidCraftVerification(
+                verification_id="inspection-model",
+                baseline=_expectation(),
+                inspections=(
+                    SolidCraftInspection(
+                        id="projected",
+                        command_path=command,
+                        checks=(
+                            SolidCraftInspectionCheck(
+                                id="missing",
+                                path=(0, "missing"),
+                                expected=1,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+            def evaluate(_source, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                data = _measurements()
+                destination.write_text(json.dumps(data), encoding="utf-8")
+                return data
+
+            def inspect_model(_source, _command, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text(json.dumps(result), encoding="utf-8")
+                return result
+
+            with (
+                patch.object(
+                    solidcraft_module,
+                    "evaluate_solidcraft_model",
+                    side_effect=evaluate,
+                ),
+                patch.object(
+                    solidcraft_module,
+                    "inspect_solidcraft_model",
+                    side_effect=inspect_model,
+                ),
+            ):
+                report = run_solidcraft_verification(
+                    model,
+                    root / "out",
+                    definition,
+                )
+
+            self.assertEqual(report["status"], "error")
+            self.assertIn(
+                "SolidCraftEvidenceError",
+                report["checks"][-1]["error"],
+            )
+
+    def test_projected_inspection_rejects_ambiguous_configuration(self):
+        with self.assertRaisesRegex(
+            VerificationConfigError,
+            "exactly one",
+        ):
+            SolidCraftInspectionCheck(
+                id="bad",
+                expected=1,
+                count=1,
+            )
+
+        with self.assertRaisesRegex(
+            VerificationConfigError,
+            "mutually exclusive",
+        ):
+            SolidCraftInspection(
+                id="bad",
+                command_path=Path("inspect.json"),
+                expected={"value": 1},
+                checks=(
+                    SolidCraftInspectionCheck(
+                        id="value",
+                        path=("value",),
+                        expected=1,
+                    ),
+                ),
             )
 
     def test_inspection_mismatch_is_normal_verification_failure(self):
