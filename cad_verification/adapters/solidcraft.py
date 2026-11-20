@@ -157,7 +157,7 @@ def _evidence_optional_text(value: Any, path: str) -> str | None:
 class SolidCraftBodyExpectation:
     """Model-specific expectations for exactly one named SolidCraft body."""
 
-    name_prefix: str
+    name_prefix: str | None = None
     minimum: tuple[float, float, float] | None = None
     maximum: tuple[float, float, float] | None = None
     bounds_tolerance: float = 0.0
@@ -168,11 +168,12 @@ class SolidCraftBodyExpectation:
     closed: bool | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            "name_prefix",
-            _config_text(self.name_prefix, "name_prefix"),
-        )
+        if self.name_prefix is not None:
+            object.__setattr__(
+                self,
+                "name_prefix",
+                _config_text(self.name_prefix, "name_prefix"),
+            )
         if (self.minimum is None) != (self.maximum is None):
             raise VerificationConfigError(
                 "minimum and maximum must be supplied together"
@@ -813,27 +814,42 @@ def verify_solidcraft_measurements(
     if expectation.named_bodies:
         named_evidence = []
         rows = body_rows()
-        names = [
-            _body_name(row, f"bodies[{index}]")
-            for index, row in enumerate(rows)
-        ]
+        names: list[str] | None = None
         for expected in expectation.named_bodies:
-            matches = [
-                (index, row, names[index])
-                for index, row in enumerate(rows)
-                if names[index].startswith(expected.name_prefix)
-            ]
-            require_equal(
-                1,
-                len(matches),
-                label=f"{expected.name_prefix} body count",
-            )
-            index, body, body_name = matches[0]
+            if expected.name_prefix is None:
+                require_equal(
+                    1,
+                    len(rows),
+                    label="sole body count",
+                )
+                index, body = 0, rows[0]
+                selector_label = "sole body"
+                item_evidence: dict[str, Any] = {
+                    "selector": "sole",
+                }
+            else:
+                if names is None:
+                    names = [
+                        _body_name(row, f"bodies[{index}]")
+                        for index, row in enumerate(rows)
+                    ]
+                matches = [
+                    (index, row, names[index])
+                    for index, row in enumerate(rows)
+                    if names[index].startswith(expected.name_prefix)
+                ]
+                require_equal(
+                    1,
+                    len(matches),
+                    label=f"{expected.name_prefix} body count",
+                )
+                index, body, body_name = matches[0]
+                selector_label = expected.name_prefix
+                item_evidence = {
+                    "name_prefix": expected.name_prefix,
+                    "body_name": body_name,
+                }
             path = f"bodies[{index}]"
-            item_evidence: dict[str, Any] = {
-                "name_prefix": expected.name_prefix,
-                "body_name": body_name,
-            }
 
             if expected.minimum is not None and expected.maximum is not None:
                 actual = _body_envelope(body, path)
@@ -843,7 +859,7 @@ def verify_solidcraft_measurements(
                     actual.minimum,
                     actual.maximum,
                     expected.bounds_tolerance,
-                    label=f"{expected.name_prefix} bounds",
+                    label=f"{selector_label} bounds",
                 )
 
             if expected.volume_mm3 is not None:
@@ -858,7 +874,7 @@ def verify_solidcraft_measurements(
                         f"{path}.volume_mm3",
                     ),
                     expected.volume_tolerance,
-                    label=f"{expected.name_prefix} volume",
+                    label=f"{selector_label} volume",
                 )
 
             if expected.face_type_counts is not None:
@@ -882,7 +898,7 @@ def verify_solidcraft_measurements(
                 item_evidence["face_type_counts"] = require_equal(
                     dict(expected.face_type_counts),
                     actual_face_types,
-                    label=f"{expected.name_prefix} face type counts",
+                    label=f"{selector_label} face type counts",
                 )
 
             if expected.sheet_metal is not None:
@@ -896,7 +912,7 @@ def verify_solidcraft_measurements(
                         body["sheet_metal"],
                         f"{path}.sheet_metal",
                     ),
-                    label=f"{expected.name_prefix} sheet_metal",
+                    label=f"{selector_label} sheet_metal",
                 )
 
             if expected.closed is not None:
@@ -907,7 +923,7 @@ def verify_solidcraft_measurements(
                 item_evidence["closed"] = require_equal(
                     expected.closed,
                     _evidence_bool(body["closed"], f"{path}.closed"),
-                    label=f"{expected.name_prefix} closed",
+                    label=f"{selector_label} closed",
                 )
 
             named_evidence.append(item_evidence)
