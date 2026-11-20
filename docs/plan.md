@@ -26,28 +26,33 @@ These are existing consumer contracts, not speculative API expansion.
 
 ## Current goal
 
-Complete #52 next.
+Complete #53 next.
 
-#44, #45 and #51 are merged. Partial parameter/sketch contracts and the required
-count projections are now declarative.
+#44, #45, #51 and #52 are merged. Partial parameter/sketch contracts, count
+projections and multi-body prefix groups are declarative.
 
-#52 preserves existing contracts that identify several occurrence bodies by one
-shared SolidCraft name prefix while also checking their order-independent
-geometry.
+#53 is the final first-batch prerequisite. It must express only stable selected
+fields from large SolidCraft inspection objects, including list-object selection,
+collection counts and numeric tolerances.
 
 ## Required proof
 
-- add a dedicated generic body-group expectation; do not change the existing
-  exact-one `SolidCraftBodyExpectation` selector;
-- group selection uses the caller-supplied `name_prefix`;
-- group count is explicit and exact;
-- optional expected body envelopes are order-independent and use existing bounds
-  tolerance semantics;
-- configured envelope count must agree with configured group count;
-- deterministic evidence preserves matched body names plus requested count and
-  geometry comparison;
-- malformed body/name/bounds evidence remains typed;
-- existing single-body expectations remain unchanged.
+- preserve existing exact whole-result `SolidCraftInspection.expected`;
+- preserve retain-only inspection behavior when no expectation is supplied;
+- projected checks are data only and have stable IDs;
+- paths support object keys, non-negative list indexes and an exact-one list
+  selector by field/value;
+- one projected check performs exactly one operation: exact value, tolerant
+  numeric scalar/vector, or collection count;
+- numeric tolerance supports flat numeric vectors of arbitrary finite length,
+  including the 2D/3D vectors used by existing contracts;
+- list selection is order-independent for keyed rows and requires exactly one
+  match;
+- missing/malformed requested paths are typed evidence errors; a selector count
+  mismatch or value mismatch is a normal verification failure;
+- raw inspection JSON remains the published artifact;
+- deterministic evidence records only requested projections, not incidental raw
+  fields.
 
 ## Execution order
 
@@ -66,8 +71,7 @@ geometry.
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #52 Allow declarative expectations for multiple SolidCraft bodies sharing a name prefix | now | #44/#45/#51 are merged; required for existing Block*/Marker* identity + geometry contracts. |
-| #53 Add projected and tolerant declarative SolidCraft inspection expectations | next | Required for sheet flat-pattern and BOM/component inspections without comparing incidental raw fields. |
+| #53 Add projected and tolerant declarative SolidCraft inspection expectations | now | Final first-batch prerequisite; #44/#45/#51/#52 are merged. |
 | #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to the qualification migration. |
 
 Immediate chain:
