@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.13.1
+
+- allow body center-of-mass expectations to omit individual XYZ axes with
+  `None`;
+- preserve the 0.13.0 full-XYZ comparison and evidence path unchanged;
+- validate and compare only requested sparse axes so omitted coordinates do not
+  become consumer contracts.
+
+
 ## 0.13.0
 
 - add optional total face-count expectations for selected SolidCraft bodies;

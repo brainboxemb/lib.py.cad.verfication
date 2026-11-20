@@ -332,6 +332,73 @@ class SolidCraftAdapterTests(unittest.TestCase):
                 ),
             )
 
+    def test_sparse_center_of_mass_checks_only_requested_axes(self):
+        data = self.measurements()
+        data["bodies"][0]["center_of_mass"] = [0.0005, "ignored", None]
+
+        evidence = verify_solidcraft_measurements(
+            data,
+            SolidCraftModelExpectation(
+                named_bodies=(
+                    SolidCraftBodyExpectation(
+                        center_of_mass=(0.0, None, None),
+                        center_of_mass_tolerance=0.001,
+                    ),
+                ),
+            ),
+        )
+
+        center = evidence["named_bodies"][0]["center_of_mass"]
+        self.assertEqual(list(center["components"]), ["x"])
+        self.assertTrue(center["components"]["x"]["pass"])
+
+    def test_sparse_center_of_mass_mismatch_is_verification_failure(self):
+        data = self.measurements()
+        data["bodies"][0]["center_of_mass"] = [0.01, "ignored", None]
+
+        with self.assertRaises(VerificationFailure):
+            verify_solidcraft_measurements(
+                data,
+                SolidCraftModelExpectation(
+                    named_bodies=(
+                        SolidCraftBodyExpectation(
+                            center_of_mass=(0.0, None, None),
+                            center_of_mass_tolerance=0.001,
+                        ),
+                    ),
+                ),
+            )
+
+    def test_sparse_center_of_mass_rejects_all_omitted_axes(self):
+        from cad_verification import VerificationConfigError
+
+        with self.assertRaisesRegex(
+            VerificationConfigError,
+            "at least one axis",
+        ):
+            SolidCraftBodyExpectation(
+                center_of_mass=(None, None, None),
+            )
+
+    def test_sparse_center_of_mass_validates_requested_axis(self):
+        data = self.measurements()
+        data["bodies"][0]["center_of_mass"] = ["broken", 0.0, 5.0]
+
+        with self.assertRaisesRegex(
+            SolidCraftEvidenceError,
+            r"center_of_mass\[0\]",
+        ):
+            verify_solidcraft_measurements(
+                data,
+                SolidCraftModelExpectation(
+                    named_bodies=(
+                        SolidCraftBodyExpectation(
+                            center_of_mass=(0.0, None, None),
+                        ),
+                    ),
+                ),
+            )
+
     def test_requested_body_face_count_requires_integer_evidence(self):
         data = self.measurements()
         data["bodies"][0]["faces"] = "six"

@@ -959,3 +959,29 @@ When requested:
 
 The consumer owns the expected values and tolerance. The adapter owns the
 SolidCraft field names, parsing and comparison mechanics.
+
+
+### 20.8 Sparse SolidCraft center-of-mass axes
+
+A body center-of-mass expectation keeps exactly three XYZ positions, but each
+position may be either a finite expected number or `None`.
+
+Example:
+
+```python
+SolidCraftBodyExpectation(
+    center_of_mass=(expected_x, None, None),
+    center_of_mass_tolerance=0.001,
+)
+```
+
+Rules:
+
+- the tuple length is exactly three;
+- at least one axis is numeric;
+- `None` means that axis is outside the consumer contract;
+- only requested axes are read, validated and compared;
+- malformed evidence on an omitted axis must not fail verification;
+- the existing all-numeric XYZ form remains fully compatible;
+- the one non-negative tolerance applies to every requested axis;
+- evidence identifies only the requested sparse axes.
