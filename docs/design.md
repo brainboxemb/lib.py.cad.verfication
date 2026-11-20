@@ -1572,3 +1572,44 @@ SolidCraft `center_of_mass` array and compares each requested component with
 the existing scalar comparison helper. Omitted components are not passed
 through numeric evidence validation. This prevents incidental Y/Z data from
 becoming part of an X-only model contract.
+
+
+## Saved-design numeric change projection
+
+Issue #73 adds one data-only relation to the existing
+`SolidCraftSavedDesign` definition:
+
+```python
+@dataclass(frozen=True)
+class SolidCraftMeasurementChangeExpectation:
+    id: str
+    path: tuple[str | int, ...]
+    minimum_absolute_delta: float
+
+@dataclass(frozen=True)
+class SolidCraftSavedDesign:
+    id: str
+    command_path: Path
+    expectation: SolidCraftModelExpectation
+    changes: tuple[SolidCraftMeasurementChangeExpectation, ...] = ()
+```
+
+The baseline check continues to write
+`baseline/measurements.json` before saved-design checks execute. A saved-design
+check with relations loads that existing artifact through the adapter's strict
+JSON loader; it does not call SolidCraft again for the baseline.
+
+Path resolution is deliberately smaller than projected inspection selection:
+only object-key strings and non-negative list indexes are allowed. This is
+sufficient for stable SolidCraft measurement paths and avoids adding selectors
+or consumer callbacks to mutation relations.
+
+For each relation the adapter resolves the same path against baseline and
+mutated measurement objects, normalizes both as finite numbers, computes
+`abs(mutated - baseline)`, then uses the existing generic condition assertion
+with the strict `>` threshold.
+
+Existing absolute `SolidCraftModelExpectation` verification runs first for the
+mutated model. Relation evidence is then added under a separate
+`changes` collection. Definitions without `changes` preserve their existing
+evidence shape.
