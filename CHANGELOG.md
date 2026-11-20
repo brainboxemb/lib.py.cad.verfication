@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.0
+
+- add explicit subset matching for SolidCraft parameter expectations while preserving exact matching as the default;
+- allow SolidCraft sketch expectations to verify only declared stable fields;
+- add declarative body, sketch, timeline-feature and face-type count expectations;
+- add declarative multi-body groups selected by one caller-supplied name prefix with exact count and optional order-independent envelopes;
+- add projected read-only inspection checks with explicit object/list paths, keyed list selection, exact values, numeric tolerances and collection counts;
+- keep raw inspection results as evidence artifacts while reporting only requested projected checks;
+- preserve all existing exact SolidCraft expectation and inspection behavior.
+
 ## 0.10.1
 
 - keep SolidCraft-only public imports independent of geometry and visual
