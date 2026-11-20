@@ -5,46 +5,51 @@ This file is the current source of truth for unfinished work in
 
 ## Current status
 
-Release `0.13.0` is complete at
-`086c5370f5247562bf302c589297cc470d555e49`.
+Release `0.13.1` is complete at
+`3600fa6145f11d05d6f27a342df0c24e075905eb`.
 
-It added generic SolidCraft expectations for total body face count, full XYZ
-center of mass and sketch DOF. The next Forge migration audit found one
-precision issue before adoption: some existing model contracts intentionally
-assert only one center-of-mass axis. Requiring all three axes would strengthen
-those contracts accidentally.
+Forge #543 has proven the next ten declarative Qualification cases against that
+release. Only `sketch-pattern-mirror` remains procedural.
+
+Its remaining contract is generic but relational: after one saved-design
+mutation, a numeric measurement must differ from the baseline by more than a
+configured threshold. Forge must not own that comparison mechanic.
 
 ## Current goal
 
-Complete #71 and release sparse center-of-mass axis expectations as `0.13.1`.
+Complete #73 and release saved-design numeric change expectations as `0.14.0`.
 
 ## Required proof
 
-- existing full XYZ center-of-mass expectations behave unchanged;
-- a three-position center tuple may use `None` for omitted axes;
-- at least one axis must be requested;
-- omitted axes are not parsed, compared or emitted as contract evidence;
-- requested malformed/missing axis evidence is a typed SolidCraft evidence
-  error;
-- mismatches are normal verification failures;
-- complete installed-wheel CI passes;
-- immutable `0.13.1` is published from the exact green main commit;
-- Forge #542 consumes 0.13.1.
+- a saved design may request one or more numeric baseline-to-mutated changes by
+  JSON measurement path;
+- paths use object keys and non-negative list indexes only;
+- baseline measurements reuse the baseline artifact already produced in the
+  same verification run;
+- baseline is not re-evaluated;
+- resolved values are finite numbers;
+- pass condition is strictly absolute delta greater than the configured minimum;
+- malformed path/value evidence is a typed SolidCraft evidence error;
+- insufficient delta is a normal verification failure;
+- saved designs without change expectations behave unchanged;
+- installed-wheel CI passes;
+- immutable `0.14.0` is published from the exact green main commit;
+- Forge then migrates its final procedural case.
 
 ## Execution order
 
-1. Define #71 behavior in requirements/design.
-2. Add compatibility and sparse-axis unit tests.
-3. Implement the smallest adapter refinement.
-4. Release immutable `0.13.1`.
-5. Resume Forge #542.
+1. Define #73 behavior in requirements/design.
+2. Add adapter tests for configuration, pass/fail and malformed evidence.
+3. Implement the smallest saved-design relation.
+4. Release immutable `0.14.0`.
+5. Migrate Forge `sketch-pattern-mirror`.
 
 ## Open issue assessment — 2026-11-20
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #71 Allow sparse center-of-mass axis expectations | now | Backward-compatible precision fix required before Forge #542 consumes the new center expectation. |
-| #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to Forge #542. |
+| #73 Support saved-design numeric change expectations | now | Final generic prerequisite for the last Forge procedural Qualification case. |
+| #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to the final Forge migration. |
 
 Immediate chain:
-`#71 verification 0.13.1 -> Forge #542 next ten declarative cases`.
+`#73 verification 0.14.0 -> final Forge procedural case -> Pages coverage work`.
