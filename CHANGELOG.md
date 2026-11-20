@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.11.0
+
+- add explicit subset matching for selected SolidCraft parameters while
+  preserving exact full-map matching by default;
+- allow named SolidCraft sketch expectations to check only the declared
+  profiles, curves and/or status fields;
+- add declarative total sketch counts, partial timeline feature-type counts and
+  partial named-body face-type counts;
+- add order-independent expectations for multiple bodies sharing one caller
+  supplied name prefix;
+- add data-only projected SolidCraft inspection checks with keyed list
+  selection, exact values, collection counts and tolerant numeric
+  scalar/vector comparison;
+- preserve existing exact inspection, retain-only inspection and existing
+  SolidCraft expectation behavior.
+
 ## 0.10.1
 
 - keep SolidCraft-only public imports independent of geometry and visual
