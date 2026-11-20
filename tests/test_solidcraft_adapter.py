@@ -189,6 +189,93 @@ class SolidCraftAdapterTests(unittest.TestCase):
         ):
             SolidCraftSketchExpectation(name="Profile")
 
+    def test_sketch_count_checks_only_total_rows(self):
+        data = self.measurements()
+        data["sketches"][0] = "incidental-row-shape"
+
+        evidence = verify_solidcraft_measurements(
+            data,
+            SolidCraftModelExpectation(sketch_count=1),
+        )
+        self.assertTrue(evidence["sketch_count"]["pass"])
+
+    def test_timeline_type_counts_allow_unrelated_types(self):
+        data = self.measurements()
+        data["timeline"].append({"type": "OtherFeature", "name": 123})
+
+        evidence = verify_solidcraft_measurements(
+            data,
+            SolidCraftModelExpectation(
+                timeline_type_counts={
+                    "BoxFeature": 1,
+                    "HoleFeature": 0,
+                }
+            ),
+        )
+
+        self.assertEqual(
+            evidence["timeline_type_counts"]["actual"],
+            {"BoxFeature": 1, "HoleFeature": 0},
+        )
+
+    def test_named_body_face_type_counts_are_partial(self):
+        data = self.measurements()
+        data["bodies"][0]["face_types"] = {
+            "cylinder": 2,
+            "plane": "not-requested",
+        }
+
+        evidence = verify_solidcraft_measurements(
+            data,
+            SolidCraftModelExpectation(
+                named_bodies=(
+                    SolidCraftBodyExpectation(
+                        name_prefix="Plate",
+                        face_type_counts={
+                            "cone": 0,
+                            "cylinder": 2,
+                        },
+                    ),
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            evidence["named_bodies"][0]["face_type_counts"]["actual"],
+            {"cone": 0, "cylinder": 2},
+        )
+
+    def test_requested_face_type_count_must_be_integer(self):
+        data = self.measurements()
+        data["bodies"][0]["face_types"] = {"cylinder": "two"}
+
+        with self.assertRaisesRegex(
+            SolidCraftEvidenceError,
+            r"face_types\.cylinder",
+        ):
+            verify_solidcraft_measurements(
+                data,
+                SolidCraftModelExpectation(
+                    named_bodies=(
+                        SolidCraftBodyExpectation(
+                            name_prefix="Plate",
+                            face_type_counts={"cylinder": 2},
+                        ),
+                    ),
+                ),
+            )
+
+    def test_count_expectation_rejects_negative_configuration(self):
+        from cad_verification import VerificationConfigError
+
+        with self.assertRaises(VerificationConfigError):
+            SolidCraftModelExpectation(sketch_count=-1)
+
+        with self.assertRaises(VerificationConfigError):
+            SolidCraftModelExpectation(
+                timeline_type_counts={"HoleFeature": -1}
+            )
+
     def test_timeline_can_ignore_generated_name(self):
         data = self.measurements()
         data["timeline"][0]["name"] = "Box1"
