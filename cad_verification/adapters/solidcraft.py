@@ -14,7 +14,7 @@ from pathlib import Path
 import re
 from typing import Any, Mapping
 
-from ..assertions import require_equal
+from ..assertions import require_condition, require_equal
 from ..comparison import (
     BodyEnvelope,
     compare_bounds,
@@ -1071,6 +1071,167 @@ def _identifier(value: Any, name: str) -> str:
     return value
 
 
+def _config_json_key(value: Any, name: str) -> str:
+    """Return one non-empty JSON object key without rewriting it."""
+
+    if not isinstance(value, str) or not value:
+        raise VerificationConfigError(f"{name} must be a non-empty string")
+    return value
+
+
+def _config_json_scalar(value: Any, name: str) -> Any:
+    """Return one finite JSON scalar used by an inspection selector."""
+
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise VerificationConfigError(f"{name} must be finite")
+        return value
+    raise VerificationConfigError(f"{name} must be a JSON scalar")
+
+
+def _config_json_value(value: Any, name: str) -> Any:
+    """Normalize one JSON-compatible configuration value."""
+
+    try:
+        encoded = json.dumps(
+            value,
+            sort_keys=True,
+            allow_nan=False,
+        )
+    except (TypeError, ValueError) as exc:
+        raise VerificationConfigError(
+            f"{name} must be JSON-compatible"
+        ) from exc
+    return json.loads(encoded)
+
+
+def _config_tolerant_inspection_value(value: Any, name: str) -> Any:
+    """Normalize one numeric scalar or flat numeric vector expectation."""
+
+    if isinstance(value, Real) and not isinstance(value, bool):
+        return _config_number(value, name)
+
+    if isinstance(value, list) and value:
+        return [
+            _config_number(item, f"{name}[{index}]")
+            for index, item in enumerate(value)
+        ]
+
+    raise VerificationConfigError(
+        f"{name} with tolerance must be a numeric scalar "
+        "or non-empty numeric array"
+    )
+
+
+@dataclass(frozen=True)
+class SolidCraftInspectionSelect:
+    """Select exactly one object from a JSON list by field/value."""
+
+    field: str
+    value: Any
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "field",
+            _config_json_key(self.field, "inspection selector field"),
+        )
+        object.__setattr__(
+            self,
+            "value",
+            _config_json_scalar(self.value, "inspection selector value"),
+        )
+
+
+@dataclass(frozen=True)
+class SolidCraftInspectionCheck:
+    """One data-only projected inspection comparison."""
+
+    id: str
+    path: tuple[Any, ...] = ()
+    expected: Any = field(
+        default=_NO_INSPECTION_EXPECTATION,
+        repr=False,
+    )
+    tolerance: float | None = None
+    count: int | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "id", _identifier(self.id, "inspection check id"))
+
+        if isinstance(self.path, (str, bytes)):
+            raise VerificationConfigError(
+                "inspection check path must be a sequence of path segments"
+            )
+        try:
+            raw_path = tuple(self.path)
+        except TypeError as exc:
+            raise VerificationConfigError(
+                "inspection check path must be a sequence of path segments"
+            ) from exc
+
+        normalized_path = []
+        for index, segment in enumerate(raw_path):
+            if isinstance(segment, str):
+                normalized_path.append(
+                    _config_json_key(
+                        segment,
+                        f"inspection path[{index}]",
+                    )
+                )
+            elif isinstance(segment, int) and not isinstance(segment, bool):
+                if segment < 0:
+                    raise VerificationConfigError(
+                        "inspection list indexes may not be negative"
+                    )
+                normalized_path.append(segment)
+            elif isinstance(segment, SolidCraftInspectionSelect):
+                normalized_path.append(segment)
+            else:
+                raise VerificationConfigError(
+                    "inspection path segments must be object keys, "
+                    "non-negative indexes or SolidCraftInspectionSelect values"
+                )
+        object.__setattr__(self, "path", tuple(normalized_path))
+
+        has_expected = self.expected is not _NO_INSPECTION_EXPECTATION
+        has_count = self.count is not None
+        if has_expected == has_count:
+            raise VerificationConfigError(
+                "inspection check requires exactly one of expected or count"
+            )
+
+        if has_count:
+            object.__setattr__(
+                self,
+                "count",
+                _config_count(self.count, "inspection count"),
+            )
+            if self.tolerance is not None:
+                raise VerificationConfigError(
+                    "inspection count may not define tolerance"
+                )
+            return
+
+        expected = _config_json_value(
+            self.expected,
+            "inspection check expected",
+        )
+        if self.tolerance is not None:
+            tolerance = _config_tolerance(
+                self.tolerance,
+                "inspection tolerance",
+            )
+            expected = _config_tolerant_inspection_value(
+                expected,
+                "inspection check expected",
+            )
+            object.__setattr__(self, "tolerance", tolerance)
+        object.__setattr__(self, "expected", expected)
+
+
 @dataclass(frozen=True)
 class SolidCraftSavedDesign:
     """One saved-design mutation and its expected SolidCraft result."""
@@ -1099,18 +1260,35 @@ class SolidCraftInspection:
         default=_NO_INSPECTION_EXPECTATION,
         repr=False,
     )
+    checks: tuple[SolidCraftInspectionCheck, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "id", _identifier(self.id, "inspection id"))
         object.__setattr__(self, "command_path", Path(self.command_path))
 
-        if self.expected is not _NO_INSPECTION_EXPECTATION:
+        has_expected = self.expected is not _NO_INSPECTION_EXPECTATION
+        if has_expected:
             try:
                 json.dumps(self.expected, sort_keys=True)
             except (TypeError, ValueError) as exc:
                 raise VerificationConfigError(
                     "inspection expected result must be JSON-compatible"
                 ) from exc
+
+        checks = tuple(self.checks)
+        if not all(isinstance(item, SolidCraftInspectionCheck) for item in checks):
+            raise VerificationConfigError(
+                "inspection checks must contain SolidCraftInspectionCheck values"
+            )
+        if has_expected and checks:
+            raise VerificationConfigError(
+                "inspection expected and checks are mutually exclusive"
+            )
+        _require_unique_definition_ids(
+            (item.id for item in checks),
+            "inspection check",
+        )
+        object.__setattr__(self, "checks", checks)
 
 
 @dataclass(frozen=True)
@@ -1247,6 +1425,194 @@ def _saved_design_check(
     return run
 
 
+def _inspection_path_evidence(path: tuple[Any, ...]) -> list[Any]:
+    """Return a JSON-compatible deterministic inspection path."""
+
+    result = []
+    for segment in path:
+        if isinstance(segment, SolidCraftInspectionSelect):
+            result.append(
+                {
+                    "select": {
+                        "field": segment.field,
+                        "value": segment.value,
+                    }
+                }
+            )
+        else:
+            result.append(segment)
+    return result
+
+
+def _evidence_json_scalar(value: Any, path: str) -> Any:
+    """Return one finite JSON scalar from inspection evidence."""
+
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise SolidCraftEvidenceError(f"{path} must be finite")
+        return value
+    raise SolidCraftEvidenceError(f"{path} must be a JSON scalar")
+
+
+def _resolve_inspection_path(
+    result: Any,
+    path: tuple[Any, ...],
+    check_id: str,
+) -> Any:
+    """Resolve one explicit inspection JSON path."""
+
+    current = result
+    label = "$"
+    for segment in path:
+        if isinstance(segment, str):
+            mapping = _evidence_mapping(current, label)
+            if segment not in mapping:
+                raise SolidCraftEvidenceError(
+                    f"{label}.{segment} is required"
+                )
+            current = mapping[segment]
+            label = f"{label}.{segment}"
+            continue
+
+        if isinstance(segment, int):
+            values = _evidence_list(current, label)
+            if segment >= len(values):
+                raise SolidCraftEvidenceError(
+                    f"{label}[{segment}] is out of range"
+                )
+            current = values[segment]
+            label = f"{label}[{segment}]"
+            continue
+
+        values = _evidence_list(current, label)
+        matches = []
+        for index, value in enumerate(values):
+            row_path = f"{label}[{index}]"
+            row = _evidence_mapping(value, row_path)
+            if segment.field not in row:
+                raise SolidCraftEvidenceError(
+                    f"{row_path}.{segment.field} is required"
+                )
+            selector_value = _evidence_json_scalar(
+                row[segment.field],
+                f"{row_path}.{segment.field}",
+            )
+            if selector_value == segment.value:
+                matches.append(row)
+
+        require_equal(
+            1,
+            len(matches),
+            label=(
+                f"SolidCraft inspection {check_id} selector "
+                f"{segment.field}={segment.value!r}"
+            ),
+        )
+        current = matches[0]
+        label = (
+            f"{label}[{segment.field}={segment.value!r}]"
+        )
+
+    return current
+
+
+def _compare_inspection_numeric(
+    expected: Any,
+    actual: Any,
+    tolerance: float,
+    label: str,
+) -> dict[str, Any]:
+    """Compare one numeric scalar or flat vector with tolerance."""
+
+    if isinstance(expected, float):
+        return compare_scalar(
+            expected,
+            _evidence_number(actual, label),
+            tolerance,
+            label=label,
+        )
+
+    values = _evidence_list(actual, label)
+    require_equal(
+        len(expected),
+        len(values),
+        label=f"{label} vector length",
+    )
+    actual_values = [
+        _evidence_number(value, f"{label}[{index}]")
+        for index, value in enumerate(values)
+    ]
+    differences = [
+        abs(actual_value - expected_value)
+        for expected_value, actual_value in zip(expected, actual_values)
+    ]
+    maximum = max(differences, default=0.0)
+    return require_condition(
+        maximum <= tolerance,
+        expected={
+            "value": expected,
+            "tolerance": tolerance,
+        },
+        actual={
+            "value": actual_values,
+            "max_difference": maximum,
+        },
+        label=label,
+    )
+
+
+def _projected_inspection_evidence(
+    result: Any,
+    checks: tuple[SolidCraftInspectionCheck, ...],
+) -> dict[str, Any]:
+    """Apply data-only projected inspection checks."""
+
+    rows = []
+    for check in checks:
+        actual = _resolve_inspection_path(result, check.path, check.id)
+        label = f"SolidCraft inspection check {check.id}"
+
+        if check.count is not None:
+            if isinstance(actual, Mapping):
+                actual_count = len(actual)
+            elif isinstance(actual, list):
+                actual_count = len(actual)
+            else:
+                raise SolidCraftEvidenceError(
+                    f"{label} count target must be an array or object"
+                )
+            comparison = require_equal(
+                check.count,
+                actual_count,
+                label=label,
+            )
+        elif check.tolerance is not None:
+            comparison = _compare_inspection_numeric(
+                check.expected,
+                actual,
+                check.tolerance,
+                label,
+            )
+        else:
+            comparison = require_equal(
+                check.expected,
+                actual,
+                label=label,
+            )
+
+        rows.append(
+            {
+                "id": check.id,
+                "path": _inspection_path_evidence(check.path),
+                "comparison": comparison,
+            }
+        )
+
+    return {"checks": rows}
+
+
 def _inspection_check(
     model_path: Path,
     definition: SolidCraftInspection,
@@ -1269,6 +1635,11 @@ def _inspection_check(
                 definition.expected,
                 result,
                 label=f"SolidCraft inspection {definition.id}",
+            )
+        elif definition.checks:
+            evidence = _projected_inspection_evidence(
+                result,
+                definition.checks,
             )
 
         return CheckOutcome.passed(
