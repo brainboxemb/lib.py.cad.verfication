@@ -696,3 +696,24 @@ This lets a model verify stable SolidCraft behavior without claiming ownership
 of generated native names.
 
 This work is tracked by issue #40.
+
+
+## 21. Public import isolation for optional verification stacks
+
+The public package root must not load geometry or visual implementation modules
+unless a public API from those modules is actually requested.
+
+In particular:
+
+- importing `SolidCraftVerification` or
+  `run_solidcraft_verification` from `cad_verification` must not import
+  `cad_verification.geometry` or `cad_verification.visual`;
+- the same top-level geometry and visual names remain public and compatible;
+- requesting a geometry or visual name may load its implementation module at
+  that moment;
+- import isolation changes no verification result, evidence schema or
+  consumer-facing type/function semantics.
+
+This requirement allows runtime packagers to construct role-specific
+environments without forcing unrelated geometry/visual stacks into a
+SolidCraft-only process. Dependency packaging remains a separate concern.

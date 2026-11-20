@@ -1240,3 +1240,37 @@ During `verify_solidcraft_measurements()`:
 
 The adapter therefore remains strict about timeline structure and order while
 allowing the consumer to omit unstable fields from its model contract.
+
+
+## Lazy optional public exports
+
+The package root eagerly imports the lightweight core, comparison, semantic and
+SolidCraft adapter APIs.
+
+Geometry and visual exports are registered in one private lazy-export map:
+
+```text
+public name -> implementation module -> implementation attribute
+```
+
+Module-level `__getattr__` resolves one lazy name with
+`importlib.import_module()`, caches the resolved object in module globals and
+returns it. `__all__` remains unchanged so the public API surface is stable.
+`__dir__` includes lazy names for normal introspection.
+
+This design means:
+
+```text
+from cad_verification import SolidCraftVerification
+  -> no geometry import
+  -> no visual import
+
+from cad_verification import GeometryContract
+  -> load cad_verification.geometry on demand
+
+from cad_verification import ExpectedBox
+  -> load cad_verification.visual on demand
+```
+
+The package dependency declaration is not changed by this release. Runtime
+packaging decisions remain outside this library.
