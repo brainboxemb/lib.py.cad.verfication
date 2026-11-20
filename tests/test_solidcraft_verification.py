@@ -399,7 +399,8 @@ class DeclarativeSolidCraftVerificationTests(unittest.TestCase):
                     }
                 },
             )
-            self.assertNotIn("id", json.dumps(evidence))
+            self.assertNotIn("result", evidence)
+            self.assertNotIn("revision", json.dumps(evidence))
             self.assertTrue(
                 (
                     output
