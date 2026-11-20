@@ -26,25 +26,25 @@ These are existing consumer contracts, not speculative API expansion.
 
 ## Current goal
 
-Complete #44 first.
+Complete #45 next.
 
-Existing released consumers already use
-`SolidCraftModelExpectation(parameters={...})` as an exact full-map contract.
-That behavior must remain backward compatible.
+#44 is merged and preserves exact parameter matching while adding explicit
+subset mode.
 
-Add an explicit subset parameter matching mode for models whose contract names
-only selected parameters.
+#45 makes `SolidCraftSketchExpectation` fields independently optional so a
+consumer can preserve an existing contract such as “the named sketch is solved”
+without inventing profile/curve counts.
 
 ## Required proof
 
-- existing parameter matching remains exact by default;
-- subset mode requires every requested parameter name to exist;
-- subset mode compares only requested values and allows unrelated actual
-  parameters;
-- deterministic subset evidence contains only requested expected/actual keys;
-- malformed/duplicate parameter evidence remains `SolidCraftEvidenceError`;
-- invalid matching mode is a configuration error;
-- existing adapter and built-wheel tests remain green.
+- sketch name remains the strict selector;
+- `profiles`, `curves` and `status` are independently optional;
+- at least one of those properties must be requested;
+- only requested fields are required/read/compared;
+- expected/actual evidence contains only the requested fields plus selector name;
+- duplicate/missing named sketch selection remains a normal verification failure;
+- malformed requested fields remain `SolidCraftEvidenceError`;
+- existing full sketch expectations remain unchanged.
 
 ## Execution order
 
@@ -63,8 +63,7 @@ only selected parameters.
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #44 Allow partial SolidCraft parameter expectations | now | First concrete prerequisite for existing Forge contracts that check only named parameters. |
-| #45 Allow partial SolidCraft sketch expectations | next | Required by cases that care about named sketch status but not incidental profile/curve counts. |
+| #45 Allow partial SolidCraft sketch expectations | now | Required by cases that care about named sketch status but not incidental profile/curve counts; #44 is merged. |
 | #51 Add declarative SolidCraft count expectations for measured model/body evidence | next | Required for existing face-type, total sketch and timeline-type count contracts. |
 | #52 Allow declarative expectations for multiple SolidCraft bodies sharing a name prefix | next | Required to preserve existing occurrence/body identity contracts without replacing them by geometry-only checks. |
 | #53 Add projected and tolerant declarative SolidCraft inspection expectations | next | Required for sheet flat-pattern and BOM/component inspections without comparing incidental raw fields. |

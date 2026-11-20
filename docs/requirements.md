@@ -749,3 +749,30 @@ A non-supported parameter matching mode is
 `VerificationConfigError`.
 
 The mode has no effect when no parameter expectation is supplied.
+
+
+## 24. Partial SolidCraft sketch expectations
+
+`SolidCraftSketchExpectation.name` remains the strict named-sketch selector.
+
+The properties `profiles`, `curves` and `status` are independently
+optional checks.
+
+At least one property must be supplied. An expectation containing only a name
+is invalid because existence-only semantics are not part of this contract.
+
+For a matched sketch:
+
+- only declared properties are required in SolidCraft evidence;
+- only declared properties are normalized and compared;
+- undeclared sketch properties may be absent or different without affecting
+  the result;
+- expected and actual evidence contain the selector name plus only declared
+  properties.
+
+The selector still requires exactly one sketch with the requested name.
+Missing or duplicate matches are `VerificationFailure`. A malformed requested
+property is `SolidCraftEvidenceError`.
+
+Existing expectations that supply all three properties retain their current
+meaning.

@@ -1313,3 +1313,30 @@ comparison evidence and produces a normal `VerificationFailure`. Unrelated
 actual keys never enter subset evidence.
 
 No consumer callback, predicate or custom parser is introduced.
+
+
+## Partial SolidCraft sketch matching
+
+`SolidCraftSketchExpectation` keeps `name` required and changes:
+
+```python
+profiles: int | None = None
+curves: int | None = None
+status: str | None = None
+```
+
+Construction validates each supplied property with its existing field
+normalizer and rejects a definition where all three are `None`.
+
+`evidence()` projects only the declared fields:
+
+```text
+name + declared expectation fields
+```
+
+During measurement verification, the adapter first performs the existing strict
+exact-one match by sketch name. It then reads only the fields present in the
+expectation projection and normalizes those requested actual values before
+`require_equal()`.
+
+No wildcard sketches, consumer predicates or existence-only mode are added.
