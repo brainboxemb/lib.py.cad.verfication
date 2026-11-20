@@ -155,7 +155,7 @@ def _evidence_optional_text(value: Any, path: str) -> str | None:
 
 @dataclass(frozen=True)
 class SolidCraftBodyExpectation:
-    """Model-specific expectations for exactly one named SolidCraft body."""
+    """Model-specific expectations for exactly one selected SolidCraft body."""
 
     name_prefix: str | None = None
     minimum: tuple[float, float, float] | None = None
