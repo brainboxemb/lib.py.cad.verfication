@@ -5,74 +5,50 @@ This file is the current source of truth for unfinished work in
 
 ## Current status
 
-Release `0.10.1` is complete. It preserves the public verification API while
-lazy-loading geometry and visual implementation modules for SolidCraft-only
-consumers.
+The complete first-batch SolidCraft prerequisite set is merged on `main`:
 
-Forge's five-case staged proof is complete. The next Forge #432 migration batch
-contains ten existing Qualification cases whose procedural contracts expose the
-remaining reusable SolidCraft semantics needed before the broader catalog can
-move to data-only `verification/verify.py`.
+- #44 partial parameter expectations;
+- #45 partial sketch expectations;
+- #51 declarative count expectations;
+- #52 multi-body prefix groups;
+- #53 projected/tolerant inspection expectations.
 
-The required generic prerequisite set is now explicit:
-
-- #44 — partial parameter expectations;
-- #45 — partial sketch expectations;
-- #51 — declarative count expectations for model/body evidence;
-- #52 — multiple bodies sharing one name prefix;
-- #53 — projected/tolerant inspection expectations.
-
-These are existing consumer contracts, not speculative API expansion.
+Each feature was implemented and tested in its own issue/PR. No intermediate
+release was cut.
 
 ## Current goal
 
-Complete #53 next.
-
-#44, #45, #51 and #52 are merged. Partial parameter/sketch contracts, count
-projections and multi-body prefix groups are declarative.
-
-#53 is the final first-batch prerequisite. It must express only stable selected
-fields from large SolidCraft inspection objects, including list-object selection,
-collection counts and numeric tolerances.
+Complete #59 and release `0.11.0` once for the complete prerequisite set.
 
 ## Required proof
 
-- preserve existing exact whole-result `SolidCraftInspection.expected`;
-- preserve retain-only inspection behavior when no expectation is supplied;
-- projected checks are data only and have stable IDs;
-- paths support object keys, non-negative list indexes and an exact-one list
-  selector by field/value;
-- one projected check performs exactly one operation: exact value, tolerant
-  numeric scalar/vector, or collection count;
-- numeric tolerance supports flat numeric vectors of arbitrary finite length,
-  including the 2D/3D vectors used by existing contracts;
-- list selection is order-independent for keyed rows and requires exactly one
-  match;
-- missing/malformed requested paths are typed evidence errors; a selector count
-  mismatch or value mismatch is a normal verification failure;
-- raw inspection JSON remains the published artifact;
-- deterministic evidence records only requested projections, not incidental raw
-  fields.
+- `VERSION`, `pyproject.toml` and changelog all declare 0.11.0;
+- complete installed-wheel CI is green on the exact release head;
+- GitHub release/tag `v0.11.0` exists after merge;
+- #44/#45/#51/#52/#53 can then close as delivered;
+- no additional verification semantics are added in the release PR.
 
 ## Execution order
 
-1. #44 partial parameters.
-2. #45 partial sketches.
-3. #51 declarative count expectations.
-4. #52 body-prefix groups.
-5. #53 projected/tolerant inspections.
-6. Run the complete installed-wheel verification suite.
-7. Release the complete prerequisite set once as the next feature release.
-8. Update `docker.cad.solidcraft` only if that immutable runtime owns the
-   verification-library pin.
-9. Resume the first ~10-case Forge #432 batch.
+1. Release 0.11.0.
+2. Inspect `docker.cad.solidcraft` ownership/pin before Forge adoption.
+3. If required, release a new immutable SolidCraft runtime containing
+   verification 0.11.0.
+4. Resume Forge #432 first ~10-case qualification batch.
+5. Keep broader Pages cut-over blocked until current durable evidence covers the
+   existing public Qualification catalog.
 
 ## Open issue assessment — 2026-11-20
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #53 Add projected and tolerant declarative SolidCraft inspection expectations | now | Final first-batch prerequisite; #44/#45/#51/#52 are merged. |
-| #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to the qualification migration. |
+| #59 Release lib.py.cad.verification 0.11.0 for the first Forge qualification batch | now | All five generic prerequisite PRs are merged and green; one feature release remains. |
+| #44 Allow partial SolidCraft parameter expectations | effectively complete but still open | Merged; close after v0.11.0 exists. |
+| #45 Allow partial SolidCraft sketch expectations | effectively complete but still open | Merged; close after v0.11.0 exists. |
+| #51 Add declarative SolidCraft count expectations for measured model/body evidence | effectively complete but still open | Merged; close after v0.11.0 exists. |
+| #52 Allow declarative expectations for multiple SolidCraft bodies sharing a name prefix | effectively complete but still open | Merged; close after v0.11.0 exists. |
+| #53 Add projected and tolerant declarative SolidCraft inspection expectations | effectively complete but still open | Merged; close after v0.11.0 exists. |
+| #48 Replace remaining lib.py.cad.verfication repository-name references | later | Independent naming/documentation cleanup. |
 
 Immediate chain:
-`#44 -> #45 -> #51 -> #52 -> #53 -> one verification-library release -> Forge #432 batch 1`.
+`v0.11.0 -> runtime ownership/pin -> Forge #432 batch 1`.
