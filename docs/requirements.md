@@ -841,3 +841,66 @@ Malformed selected body names or requested bounds remain
 
 No Forge-specific occurrence naming rule exists in the library beyond the
 caller-supplied prefix string.
+
+
+## 27. Projected SolidCraft inspection expectations
+
+Existing inspection modes remain valid:
+
+- `SolidCraftInspection(expected=<json>)` compares the complete result exactly;
+- an inspection without expectation retains the raw result artifact without
+  comparison.
+
+A third mode provides data-only projected checks.
+
+### Inspection selector
+
+`SolidCraftInspectionSelect(field, value)` is a path segment that selects
+exactly one object from the current JSON list by exact equality of one required
+object field.
+
+Every list member used by that selector must be an object containing the
+selector field. Zero or multiple matching rows are verification mismatches.
+
+Selector values are finite JSON scalar values.
+
+### Inspection check
+
+`SolidCraftInspectionCheck` contains:
+
+- stable lowercase engineering `id`;
+- a tuple `path` of object-key strings, non-negative list indexes and
+  `SolidCraftInspectionSelect` segments;
+- exactly one requested operation:
+  - exact `expected` JSON-compatible value;
+  - tolerant numeric `expected` scalar/vector with non-negative
+    `tolerance`;
+  - exact collection `count`.
+
+A tolerant vector is a flat finite numeric JSON array of any non-zero length.
+Actual vector length must match.
+
+A collection count applies only to JSON arrays or objects.
+
+An inspection may declare projected `checks` only when whole-result
+`expected` is not supplied. Check IDs are unique within the inspection.
+
+### Failure and evidence behavior
+
+Missing object keys, out-of-range indexes, malformed selector rows, malformed
+numeric values and wrong value kinds are `SolidCraftEvidenceError`.
+
+Selector match-count mismatches, collection-count mismatches and expected-value
+mismatches are normal `VerificationFailure`.
+
+Projected check evidence contains:
+
+- check ID;
+- normalized path representation;
+- comparison evidence for only that requested value/count.
+
+The complete raw inspection result is still written as the normal inspection
+artifact but is not copied into projected comparison evidence.
+
+No consumer callbacks, predicates or executable comparison functions are
+supported.
