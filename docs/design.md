@@ -1548,3 +1548,27 @@ uses exact integer equality.
 Evidence mirrors the existing sparse expectation model: omitted fields are not
 validated and do not appear in expected/actual evidence. This prevents
 incidental SolidCraft fields from becoming part of a model contract.
+
+
+## Sparse center-of-mass projection
+
+Issue #71 refines the 0.13.0 center-of-mass expectation without changing the
+SolidCraft measurement schema.
+
+The configuration type becomes:
+
+```python
+tuple[float | None, float | None, float | None] | None
+```
+
+Normalization preserves `None` and validates only numeric components. An
+all-`None` tuple is invalid.
+
+For a full XYZ expectation, verification retains the existing vector-comparison
+path and evidence shape.
+
+For a sparse expectation, verification projects the requested axes from the
+SolidCraft `center_of_mass` array and compares each requested component with
+the existing scalar comparison helper. Omitted components are not passed
+through numeric evidence validation. This prevents incidental Y/Z data from
+becoming part of an X-only model contract.
