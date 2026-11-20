@@ -81,6 +81,22 @@ def _config_count(value: Any, name: str) -> int:
     return value
 
 
+def _config_count_mapping(value: Any, name: str) -> dict[str, int]:
+    """Return one non-empty normalized mapping of named counts."""
+
+    if not isinstance(value, Mapping):
+        raise VerificationConfigError(f"{name} must be a mapping")
+    result: dict[str, int] = {}
+    for raw_key, raw_count in value.items():
+        key = _config_text(raw_key, f"{name} key")
+        if key in result:
+            raise VerificationConfigError(f"duplicate {name} key: {key}")
+        result[key] = _config_count(raw_count, f"{name} {key}")
+    if not result:
+        raise VerificationConfigError(f"{name} may not be empty")
+    return dict(sorted(result.items()))
+
+
 def _evidence_mapping(value: Any, path: str) -> Mapping[str, Any]:
     """Return one SolidCraft object or raise a schema error."""
 
@@ -147,6 +163,7 @@ class SolidCraftBodyExpectation:
     bounds_tolerance: float = 0.0
     volume_mm3: float | None = None
     volume_tolerance: float = 0.0
+    face_type_counts: Mapping[str, int] | None = None
     sheet_metal: bool | None = None
     closed: bool | None = None
 
@@ -182,6 +199,16 @@ class SolidCraftBodyExpectation:
             "volume_tolerance",
             _config_tolerance(self.volume_tolerance, "volume_tolerance"),
         )
+
+        if self.face_type_counts is not None:
+            object.__setattr__(
+                self,
+                "face_type_counts",
+                _config_count_mapping(
+                    self.face_type_counts,
+                    "face_type_counts",
+                ),
+            )
 
         for name in ("sheet_metal", "closed"):
             value = getattr(self, name)
@@ -306,7 +333,9 @@ class SolidCraftModelExpectation:
     parameters: Mapping[str, float] | None = None
     parameter_match: str = "exact"
     named_bodies: tuple[SolidCraftBodyExpectation, ...] = ()
+    timeline_type_counts: Mapping[str, int] | None = None
     timeline: tuple[SolidCraftTimelineExpectation, ...] | None = None
+    sketch_count: int | None = None
     sketches: tuple[SolidCraftSketchExpectation, ...] = ()
 
     def __post_init__(self) -> None:
@@ -361,6 +390,23 @@ class SolidCraftModelExpectation:
                 dict(sorted(normalized_parameters.items())),
             )
 
+        if self.timeline_type_counts is not None:
+            object.__setattr__(
+                self,
+                "timeline_type_counts",
+                _config_count_mapping(
+                    self.timeline_type_counts,
+                    "timeline_type_counts",
+                ),
+            )
+
+        if self.sketch_count is not None:
+            object.__setattr__(
+                self,
+                "sketch_count",
+                _config_count(self.sketch_count, "sketch_count"),
+            )
+
         named_bodies = tuple(self.named_bodies)
         if not all(
             isinstance(item, SolidCraftBodyExpectation)
@@ -397,7 +443,9 @@ class SolidCraftModelExpectation:
             and self.body_envelopes is None
             and self.parameters is None
             and not self.named_bodies
+            and self.timeline_type_counts is None
             and self.timeline is None
+            and self.sketch_count is None
             and not self.sketches
         ):
             raise VerificationConfigError(
@@ -575,6 +623,22 @@ def _parameters(measurements: Mapping[str, Any]) -> dict[str, float]:
     return dict(sorted(result.items()))
 
 
+def _timeline_types(measurements: Mapping[str, Any]) -> list[str]:
+    """Return only validated SolidCraft timeline type values."""
+
+    if "timeline" not in measurements:
+        raise SolidCraftEvidenceError("timeline is required")
+    rows = _evidence_list(measurements["timeline"], "timeline")
+    result = []
+    for index, value in enumerate(rows):
+        path = f"timeline[{index}]"
+        row = _evidence_mapping(value, path)
+        if "type" not in row:
+            raise SolidCraftEvidenceError(f"{path}.type is required")
+        result.append(_evidence_text(row["type"], f"{path}.type"))
+    return result
+
+
 def _timeline_rows(
     measurements: Mapping[str, Any],
 ) -> list[dict[str, Any]]:
@@ -746,6 +810,30 @@ def verify_solidcraft_measurements(
                     label=f"{expected.name_prefix} volume",
                 )
 
+            if expected.face_type_counts is not None:
+                if "face_types" not in body:
+                    raise SolidCraftEvidenceError(
+                        f"{path}.face_types is required"
+                    )
+                raw_face_types = _evidence_mapping(
+                    body["face_types"],
+                    f"{path}.face_types",
+                )
+                actual_face_types = {}
+                for face_type in expected.face_type_counts:
+                    if face_type in raw_face_types:
+                        actual_face_types[face_type] = _actual_count(
+                            raw_face_types[face_type],
+                            f"{path}.face_types.{face_type}",
+                        )
+                    else:
+                        actual_face_types[face_type] = 0
+                item_evidence["face_type_counts"] = require_equal(
+                    dict(expected.face_type_counts),
+                    actual_face_types,
+                    label=f"{expected.name_prefix} face type counts",
+                )
+
             if expected.sheet_metal is not None:
                 if "sheet_metal" not in body:
                     raise SolidCraftEvidenceError(
@@ -774,6 +862,20 @@ def verify_solidcraft_measurements(
             named_evidence.append(item_evidence)
         evidence["named_bodies"] = named_evidence
 
+    if expectation.timeline_type_counts is not None:
+        actual_counts = {
+            feature_type: 0
+            for feature_type in expectation.timeline_type_counts
+        }
+        for feature_type in _timeline_types(measurements):
+            if feature_type in actual_counts:
+                actual_counts[feature_type] += 1
+        evidence["timeline_type_counts"] = require_equal(
+            dict(expectation.timeline_type_counts),
+            actual_counts,
+            label="SolidCraft timeline type counts",
+        )
+
     if expectation.timeline is not None:
         expected_timeline = [
             item.evidence()
@@ -799,6 +901,15 @@ def verify_solidcraft_measurements(
             expected_timeline,
             projected_actual,
             label="SolidCraft timeline",
+        )
+
+    if expectation.sketch_count is not None:
+        if "sketches" not in measurements:
+            raise SolidCraftEvidenceError("sketches is required")
+        evidence["sketch_count"] = require_equal(
+            expectation.sketch_count,
+            len(_evidence_list(measurements["sketches"], "sketches")),
+            label="SolidCraft sketch count",
         )
 
     if expectation.sketches:
