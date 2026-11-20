@@ -1274,3 +1274,42 @@ from cad_verification import ExpectedBox
 
 The package dependency declaration is not changed by this release. Runtime
 packaging decisions remain outside this library.
+
+
+## Partial SolidCraft parameter matching
+
+`SolidCraftModelExpectation` adds one explicit parameter matching setting:
+
+```python
+parameter_match: str = "exact"
+```
+
+Supported values are `exact` and `subset`.
+
+The existing parameter normalization helper remains authoritative and always
+parses the complete actual `params` list first. Matching changes only after
+that strict normalization succeeds.
+
+For exact matching:
+
+```text
+expected mapping
+  vs
+complete normalized actual mapping
+```
+
+using the existing `require_equal()` path.
+
+For subset matching:
+
+```text
+requested names
+  -> project normalized actual mapping to names that are present
+  -> require_equal(expected requested mapping, projected actual mapping)
+```
+
+A requested-but-missing name therefore appears as an absent key in actual
+comparison evidence and produces a normal `VerificationFailure`. Unrelated
+actual keys never enter subset evidence.
+
+No consumer callback, predicate or custom parser is introduced.
