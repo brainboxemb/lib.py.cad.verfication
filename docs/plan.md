@@ -26,25 +26,26 @@ These are existing consumer contracts, not speculative API expansion.
 
 ## Current goal
 
-Complete #45 next.
+Complete #51 next.
 
-#44 is merged and preserves exact parameter matching while adding explicit
-subset mode.
+#44 and #45 are merged. Parameter subset matching is explicit and sketch
+properties are independently optional.
 
-#45 makes `SolidCraftSketchExpectation` fields independently optional so a
-consumer can preserve an existing contract such as “the named sketch is solved”
-without inventing profile/curve counts.
+#51 adds only the generic count contracts already present in the next Forge
+batch: total sketch count, selected timeline feature-type counts and selected
+named-body face-type counts.
 
 ## Required proof
 
-- sketch name remains the strict selector;
-- `profiles`, `curves` and `status` are independently optional;
-- at least one of those properties must be requested;
-- only requested fields are required/read/compared;
-- expected/actual evidence contains only the requested fields plus selector name;
-- duplicate/missing named sketch selection remains a normal verification failure;
-- malformed requested fields remain `SolidCraftEvidenceError`;
-- existing full sketch expectations remain unchanged.
+- `sketch_count` checks the total SolidCraft sketch-row count;
+- `timeline_type_counts` checks only requested timeline `type` counts and
+  allows unrelated timeline types;
+- named-body `face_type_counts` checks only requested face types and allows
+  unrelated face types;
+- an absent requested timeline/face type has count zero;
+- malformed requested count evidence remains `SolidCraftEvidenceError`;
+- expected count configuration is non-negative integer data;
+- existing exact timeline, sketch and body expectations remain unchanged.
 
 ## Execution order
 
@@ -63,8 +64,7 @@ without inventing profile/curve counts.
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #45 Allow partial SolidCraft sketch expectations | now | Required by cases that care about named sketch status but not incidental profile/curve counts; #44 is merged. |
-| #51 Add declarative SolidCraft count expectations for measured model/body evidence | next | Required for existing face-type, total sketch and timeline-type count contracts. |
+| #51 Add declarative SolidCraft count expectations for measured model/body evidence | now | #44/#45 are merged; this preserves existing partial count contracts without strengthening them to full lists/maps. |
 | #52 Allow declarative expectations for multiple SolidCraft bodies sharing a name prefix | next | Required to preserve existing occurrence/body identity contracts without replacing them by geometry-only checks. |
 | #53 Add projected and tolerant declarative SolidCraft inspection expectations | next | Required for sheet flat-pattern and BOM/component inspections without comparing incidental raw fields. |
 | #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to the qualification migration. |

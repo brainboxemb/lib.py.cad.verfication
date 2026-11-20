@@ -1340,3 +1340,27 @@ expectation projection and normalizes those requested actual values before
 `require_equal()`.
 
 No wildcard sketches, consumer predicates or existence-only mode are added.
+
+
+## SolidCraft count projections
+
+Count expectations are projections over already normalized SolidCraft evidence.
+
+`sketch_count` uses the length of the SolidCraft `sketches` list.
+
+`timeline_type_counts` counts normalized timeline rows by their required
+`type` field, then projects only configured type keys:
+
+```text
+requested type -> actual count (0 when absent)
+```
+
+`face_type_counts` is evaluated inside the existing exact-one named-body
+selector. The matched body's `face_types` value must be a mapping. Requested
+keys are normalized as count values; an omitted requested key is zero.
+Unrequested face-type keys are neither validated as contract values nor included
+in comparison evidence.
+
+All three use deterministic sorted mappings and the existing
+`require_equal()` mismatch semantics. No consumer predicates or complete-map
+requirements are introduced.

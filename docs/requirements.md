@@ -776,3 +776,38 @@ property is `SolidCraftEvidenceError`.
 
 Existing expectations that supply all three properties retain their current
 meaning.
+
+
+## 25. SolidCraft count expectations
+
+Declarative SolidCraft expectations support three count forms required by
+existing consumer contracts.
+
+### Total sketch count
+
+`SolidCraftModelExpectation.sketch_count` optionally requires the total number
+of SolidCraft sketch rows.
+
+### Timeline type counts
+
+`SolidCraftModelExpectation.timeline_type_counts` is an optional mapping from
+timeline `type` string to expected non-negative count.
+
+Only requested types participate in the comparison. Unrelated timeline rows are
+allowed. A requested type that is not present has actual count zero.
+
+### Named-body face type counts
+
+`SolidCraftBodyExpectation.face_type_counts` is an optional mapping from
+SolidCraft body `face_types` key to expected non-negative count.
+
+Only requested face types participate in the comparison. Unrelated face types
+are allowed. A requested type omitted from the sparse actual mapping has count
+zero.
+
+All configured counts are non-negative integers. Malformed requested SolidCraft
+count evidence is `SolidCraftEvidenceError`. Count mismatches are normal
+`VerificationFailure`.
+
+These count forms do not replace or change existing exact timeline rows,
+named-sketch expectations or named-body geometry checks.
