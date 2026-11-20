@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.1
+
+- keep SolidCraft-only public imports independent of geometry and visual
+  implementation modules;
+- lazy-load existing top-level geometry and visual exports only when requested;
+- preserve the complete public API and verification/evidence semantics;
+- leave package dependency declarations unchanged for a separate runtime
+  packaging decision.
+
+
 ## 0.10.0
 
 - allow SolidCraft timeline expectations to select stable fields explicitly;
