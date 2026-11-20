@@ -2,6 +2,7 @@
 
 from .solidcraft import (
     SolidCraftBodyExpectation,
+    SolidCraftBodyGroupExpectation,
     SolidCraftInspection,
     SolidCraftModelExpectation,
     SolidCraftSavedDesign,
@@ -17,6 +18,7 @@ from .solidcraft import (
 
 __all__ = [
     "SolidCraftBodyExpectation",
+    "SolidCraftBodyGroupExpectation",
     "SolidCraftInspection",
     "SolidCraftModelExpectation",
     "SolidCraftSavedDesign",
