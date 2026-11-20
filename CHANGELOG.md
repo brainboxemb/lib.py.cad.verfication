@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0
+
+- allow `SolidCraftBodyExpectation(name_prefix=None)` to select the sole
+  measured body without requiring or validating its native body name;
+- reuse existing bounds, volume, face-type, sheet-metal and closed checks for
+  sole-body contracts;
+- preserve existing exact-one non-empty `name_prefix` behavior unchanged;
+- keep selector-count mismatches as normal verification failures and requested
+  malformed property evidence as typed SolidCraft evidence errors.
+
 ## 0.11.0
 
 - add explicit subset matching for SolidCraft parameter expectations while preserving exact matching as the default;
