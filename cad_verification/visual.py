@@ -549,6 +549,68 @@ class ThroughSlot:
         object.__setattr__(self, "label", _label(self.label))
 
 
+@dataclass(frozen=True)
+class ThroughPathSlot:
+    """One generic through-slot following a polyline centerline."""
+
+    centerline: tuple[tuple[float, float], ...]
+    width: float
+    z_min: float
+    z_max: float
+    label: str | None = None
+
+    def __post_init__(self) -> None:
+        try:
+            raw_points = tuple(self.centerline)
+        except TypeError as exc:
+            raise VerificationConfigError(
+                "path-slot centerline must contain XY points"
+            ) from exc
+        if len(raw_points) < 2:
+            raise VerificationConfigError(
+                "path-slot centerline must contain at least two points"
+            )
+
+        points = []
+        for index, point in enumerate(raw_points):
+            try:
+                values = tuple(point)
+            except TypeError as exc:
+                raise VerificationConfigError(
+                    f"path-slot centerline[{index}] must contain exactly two numbers"
+                ) from exc
+            if len(values) != 2:
+                raise VerificationConfigError(
+                    f"path-slot centerline[{index}] must contain exactly two numbers"
+                )
+            normalized = (
+                _number(values[0], f"path-slot centerline[{index}][0]"),
+                _number(values[1], f"path-slot centerline[{index}][1]"),
+            )
+            if points and normalized == points[-1]:
+                raise VerificationConfigError(
+                    "path-slot centerline may not contain duplicate neighbours"
+                )
+            points.append(normalized)
+
+        z_min = _number(self.z_min, "path-slot z_min")
+        z_max = _number(self.z_max, "path-slot z_max")
+        if z_max < z_min:
+            raise VerificationConfigError(
+                "path-slot z_max may not be below z_min"
+            )
+
+        object.__setattr__(self, "centerline", tuple(points))
+        object.__setattr__(
+            self,
+            "width",
+            _positive(self.width, "path-slot width"),
+        )
+        object.__setattr__(self, "z_min", z_min)
+        object.__setattr__(self, "z_max", z_max)
+        object.__setattr__(self, "label", _label(self.label))
+
+
 def _box_vertices(box: ExpectedBox) -> list[tuple[float, float, float]]:
     low = box.minimum
     high = box.maximum
@@ -618,6 +680,37 @@ def _slot_outline(
     return points
 
 
+def _path_slot_outline(
+    slot: ThroughPathSlot,
+    z_value: float,
+) -> list[tuple[float, float, float]]:
+    """Return the historical tangent-normal outline for a path slot."""
+
+    points = slot.centerline
+    radius = slot.width / 2.0
+    plus = []
+    minus = []
+    for index, point in enumerate(points):
+        previous = points[max(index - 1, 0)]
+        following = points[min(index + 1, len(points) - 1)]
+        dx = following[0] - previous[0]
+        dy = following[1] - previous[1]
+        length = math.hypot(dx, dy)
+        if length <= 0:
+            raise VerificationConfigError(
+                "path-slot centerline may not contain duplicate neighbours"
+            )
+        nx = -dy / length
+        ny = dx / length
+        plus.append(
+            (point[0] + nx * radius, point[1] + ny * radius, z_value)
+        )
+        minus.append(
+            (point[0] - nx * radius, point[1] - ny * radius, z_value)
+        )
+    return plus + list(reversed(minus))
+
+
 def _draw_polyline(
     draw: ImageDraw.ImageDraw,
     points: Sequence[tuple[float, float]],
@@ -636,7 +729,7 @@ def draw_expected_geometry(
     camera: OrthographicCamera,
     *,
     boxes: Iterable[ExpectedBox] = (),
-    features: Iterable[ThroughHole | ThroughSlot] = (),
+    features: Iterable[ThroughHole | ThroughSlot | ThroughPathSlot] = (),
     labels: bool = False,
     fill: bool = False,
 ) -> Image.Image:
@@ -709,9 +802,88 @@ def draw_expected_geometry(
                 )
             if labels and feature.label:
                 draw.text(upper[0], feature.label, fill=_OUTLINE)
+        elif isinstance(feature, ThroughPathSlot):
+            if len(feature.centerline) == 2:
+                straight = ThroughSlot(
+                    start=feature.centerline[0],
+                    end=feature.centerline[1],
+                    width=feature.width,
+                    z_min=feature.z_min,
+                    z_max=feature.z_max,
+                    label=feature.label,
+                )
+                lower_3d = _slot_outline(straight, straight.z_min)
+                upper_3d = _slot_outline(straight, straight.z_max)
+                lower = project_points(lower_3d, camera, width, height)
+                upper = project_points(upper_3d, camera, width, height)
+                _draw_polyline(draw, lower, closed=True)
+                _draw_polyline(draw, upper, closed=True)
+                for index in (0, len(lower) // 2):
+                    draw.line(
+                        (lower[index], upper[index]),
+                        fill=_OUTLINE,
+                        width=1,
+                    )
+                if labels and feature.label:
+                    draw.text(upper[0], feature.label, fill=_OUTLINE)
+            else:
+                lower_3d = _path_slot_outline(feature, feature.z_min)
+                upper_3d = _path_slot_outline(feature, feature.z_max)
+                lower = project_points(lower_3d, camera, width, height)
+                upper = project_points(upper_3d, camera, width, height)
+                _draw_polyline(draw, lower, closed=True)
+                _draw_polyline(draw, upper, closed=True)
+
+                radius = feature.width / 2.0
+                for z_value in (feature.z_min, feature.z_max):
+                    for endpoint in (
+                        feature.centerline[0],
+                        feature.centerline[-1],
+                    ):
+                        circle_3d = _circle_points(
+                            endpoint,
+                            radius,
+                            z_value,
+                        )
+                        circle = project_points(
+                            circle_3d,
+                            camera,
+                            width,
+                            height,
+                        )
+                        _draw_polyline(draw, circle, closed=True)
+                    centerline_3d = [
+                        (x, y, z_value)
+                        for x, y in feature.centerline
+                    ]
+                    _draw_polyline(
+                        draw,
+                        project_points(
+                            centerline_3d,
+                            camera,
+                            width,
+                            height,
+                        ),
+                    )
+
+                path_count = len(feature.centerline)
+                for index in (
+                    0,
+                    path_count - 1,
+                    path_count,
+                    len(lower_3d) - 1,
+                ):
+                    draw.line(
+                        (lower[index], upper[index]),
+                        fill=_OUTLINE,
+                        width=1,
+                    )
+                if labels and feature.label:
+                    draw.text(upper[0], feature.label, fill=_OUTLINE)
         else:
             raise VerificationConfigError(
-                "features must contain ThroughHole or ThroughSlot values"
+                "features must contain ThroughHole, ThroughSlot or "
+                "ThroughPathSlot values"
             )
 
     return result
@@ -722,7 +894,7 @@ def make_goal_image(
     camera: OrthographicCamera,
     *,
     boxes: Iterable[ExpectedBox] = (),
-    features: Iterable[ThroughHole | ThroughSlot] = (),
+    features: Iterable[ThroughHole | ThroughSlot | ThroughPathSlot] = (),
     labels: bool = False,
     fill: bool = False,
 ) -> Image.Image:
@@ -746,7 +918,7 @@ def make_overlay_image(
     camera: OrthographicCamera,
     *,
     boxes: Iterable[ExpectedBox] = (),
-    features: Iterable[ThroughHole | ThroughSlot] = (),
+    features: Iterable[ThroughHole | ThroughSlot | ThroughPathSlot] = (),
     labels: bool = False,
     fill: bool = False,
 ) -> Image.Image:
@@ -820,7 +992,7 @@ def verify_visual_view(
     diff_reference: str | None = None,
     camera: OrthographicCamera | None = None,
     boxes: Iterable[ExpectedBox] = (),
-    features: Iterable[ThroughHole | ThroughSlot] = (),
+    features: Iterable[ThroughHole | ThroughSlot | ThroughPathSlot] = (),
     goal_path: Path | None = None,
     goal_reference: str | None = None,
     overlay_path: Path | None = None,

@@ -611,10 +611,13 @@ Expose frozen generic data types:
 
 - `ExpectedBox(minimum, maximum, label=None)`;
 - `ThroughHole(center, diameter, z_min, z_max, label=None)`;
-- `ThroughSlot(start, end, width, z_min, z_max, label=None)`.
+- `ThroughSlot(start, end, width, z_min, z_max, label=None)`;
+- `ThroughPathSlot(centerline, width, z_min, z_max, label=None)`.
 
 All values are normalized to finite floats. Bounds/ranges must not be inverted.
-Slot start and end may not be identical. Width/diameter must be positive.
+Straight-slot start and end may not be identical. A path-slot centerline must
+contain at least two XY points and may not contain identical neighbouring
+points. Width/diameter must be positive.
 
 ### 15.8 Expected drawing
 
@@ -623,8 +626,16 @@ RGB image copy with deterministic outlines. It accepts only the generic types
 above and rejects unknown feature objects.
 
 Boxes draw projected edges. Through holes draw projected top/bottom circles and
-their connecting side lines. Through slots draw projected capsule outlines at
-both Z levels and connecting side lines.
+their connecting side lines. Straight through slots draw projected capsule
+outlines at both Z levels and connecting side lines.
+
+A `ThroughPathSlot` computes one deterministic tangent-normal outline from the
+consumer-supplied centerline. For each centerline point, the local normal is
+derived from the vector between its previous and following neighbours (using
+the endpoint itself at the path ends). The outline is the positive-offset path
+followed by the reversed negative-offset path. Top/bottom path outlines, endpoint
+circles, centerline and four vertical side connectors are projected and drawn.
+A two-point `ThroughPathSlot` is geometrically equivalent to `ThroughSlot`.
 
 Labels and translucent fill are optional generic presentation switches; tests do
 not depend on fonts.
@@ -734,6 +745,10 @@ CAD-engine adapter.
   `VerificationConfigError` semantics.
 
 Direct tests cover issue #26 without a consumer repository or CAD engine.
+
+Issue #75 adds direct tests for path-slot configuration, two-point equivalence,
+curved/polyline drawing, duplicate-neighbour rejection and use through
+`verify_visual_view()`.
 
 ## 16. Semantic result composition
 

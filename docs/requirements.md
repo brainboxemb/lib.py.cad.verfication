@@ -325,7 +325,7 @@ Generic behavior includes:
 5. project consumer-supplied 3D points with an orthographic camera containing
    target, yaw, pitch and distance;
 6. draw consumer-supplied expected 3D boxes;
-7. draw generic through-hole and through-slot expected features;
+7. draw generic through-hole, straight through-slot and polyline through-slot expected features;
 8. produce goal and overlay images where the actual render remains visible;
 9. verify one already-rendered visual view by composing normalization, optional
    approved-baseline regression, deterministic diff output, optional expected
@@ -348,7 +348,7 @@ The single-view verification function:
 - always writes the deterministic diff when baseline comparison is attempted;
 - preserves complete visual-view evidence when regression fails;
 - optionally creates goal and overlay images only from caller-supplied generic
-  camera/box/hole/slot values;
+  camera/box/hole/straight-slot/path-slot values;
 - returns one deterministic `VisualViewEvidence` on success or missing
   baseline;
 - raises `VerificationFailure` on regression mismatch with the complete
@@ -366,7 +366,7 @@ Tests must prove:
 - top projection X-right/Y-up;
 - valid top/bottom camera basis;
 - deterministic expected-box drawing;
-- through-hole and through-slot drawing;
+- through-hole, straight through-slot and polyline through-slot drawing;
 - invalid/unknown feature input is rejected;
 - goal image contains independent expected geometry;
 - overlay preserves actual pixels and adds expected geometry;
@@ -380,6 +380,13 @@ Tests must prove:
 
 Primitive visual behavior was introduced by issue #9. Generic single-view
 orchestration is completed by issue #26.
+
+Issue #75 extends expected-shape geometry with a polyline through-slot primitive.
+Its centerline contains at least two finite XY points. Consecutive points may
+not be identical, width must be positive, and z_max may not be below z_min.
+A two-point path slot must draw the same slot geometry as the existing straight
+`ThroughSlot`. The library owns tangent-normal path-outline generation and
+projection; consumers own the concrete centerline points.
 
 ## 17. Semantic verification result composition
 
