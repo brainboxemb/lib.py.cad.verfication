@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.0
+
+- add generic `ThroughPathSlot` expected-shape geometry for polyline/arc slot centerlines;
+- keep two-point path slots geometrically compatible with existing `ThroughSlot`;
+- support deterministic path-slot goal/overlay drawing and single-view visual evidence;
+- preserve lazy public visual imports and existing straight-slot behavior.
+
 ## 0.14.0
 
 - add data-only saved-design numeric measurement change expectations;
