@@ -5,51 +5,53 @@ This file is the current source of truth for unfinished work in
 
 ## Current status
 
-Release `0.13.1` is complete at
-`3600fa6145f11d05d6f27a342df0c24e075905eb`.
+Release `0.14.0` is complete and Forge has completed the procedural-to-
+declarative model-verification migration against it.
 
-Forge #543 has proven the next ten declarative Qualification cases against that
-release. Only `sketch-pattern-mirror` remains procedural.
+Forge #378 has now been reopened because full-catalog visual verification was
+never completed. The existing generic visual API supports expected boxes,
+through-holes and straight through-slots, but one historical Forge model
+(`slot-family`) requires a generic through-slot whose centerline contains more
+than two points.
 
-Its remaining contract is generic but relational: after one saved-design
-mutation, a numeric measurement must differ from the baseline by more than a
-configured threshold. Forge must not own that comparison mechanic.
+Forge must not reimplement that generic outline/projection mechanic.
 
 ## Current goal
 
-Complete #73 and release saved-design numeric change expectations as `0.14.0`.
+Complete #75 and release the smallest compatible visual primitive needed for
+polyline/arc slot expected-shape evidence.
 
 ## Required proof
 
-- a saved design may request one or more numeric baseline-to-mutated changes by
-  JSON measurement path;
-- paths use object keys and non-negative list indexes only;
-- baseline measurements reuse the baseline artifact already produced in the
-  same verification run;
-- baseline is not re-evaluated;
-- resolved values are finite numbers;
-- pass condition is strictly absolute delta greater than the configured minimum;
-- malformed path/value evidence is a typed SolidCraft evidence error;
-- insufficient delta is a normal verification failure;
-- saved designs without change expectations behave unchanged;
+- expose one frozen generic path-slot expected-shape type;
+- centerline contains at least two finite XY points;
+- neighbouring duplicate points are rejected;
+- width is positive and Z range is ordered;
+- two-point input is geometrically compatible with the existing straight
+  `ThroughSlot`;
+- deterministic tangent-normal outline generation matches the historical
+  consumer-independent semantics;
+- expected-geometry drawing, goal/overlay generation and
+  `verify_visual_view()` accept the new type;
+- existing `ThroughSlot` behavior is unchanged;
+- the new public symbol is lazy at the package root;
 - installed-wheel CI passes;
-- immutable `0.14.0` is published from the exact green main commit;
-- Forge then migrates its final procedural case.
+- publish an immutable release for Forge #378 to consume.
 
 ## Execution order
 
-1. Define #73 behavior in requirements/design.
-2. Add adapter tests for configuration, pass/fail and malformed evidence.
-3. Implement the smallest saved-design relation.
-4. Release immutable `0.14.0`.
-5. Migrate Forge `sketch-pattern-mirror`.
+1. [#75, now] Define path-slot behavior in requirements/design.
+2. Add visual primitive/drawing/view-evidence tests.
+3. Implement the smallest generic type and drawing support.
+4. Release the next immutable verification-library version.
+5. Resume Forge #378 full-catalog visual verification.
 
-## Open issue assessment — 2026-11-20
+## Open issue assessment — 2026-11-21
 
 | Issue | Status | Assessment |
 | --- | --- | --- |
-| #73 Support saved-design numeric change expectations | now | Final generic prerequisite for the last Forge procedural Qualification case. |
-| #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to the final Forge migration. |
+| #75 Support polyline through-slot expected-shape evidence | now | Generic blocker for Forge #378 slot-family visual expected-shape parity. |
+| #48 Replace remaining lib.py.cad.verfication repository-name references | later | Naming/documentation cleanup unrelated to the Forge visual blocker. |
 
 Immediate chain:
-`#73 verification 0.14.0 -> final Forge procedural case -> Pages coverage work`.
+`#75 path-slot visual primitive -> verification-library release -> Forge #378`.
