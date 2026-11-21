@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`lib.py.cad.verfication` is the reusable Python library for CAD/model
+`lib.py.cad.verification` is the reusable Python library for CAD/model
 verification mechanics.
 
 ## CI boundary
