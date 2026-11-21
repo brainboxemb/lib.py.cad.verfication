@@ -16,6 +16,7 @@ from cad_verification import (
     ExpectedBox,
     OrthographicCamera,
     ThroughHole,
+    ThroughPathSlot,
     ThroughSlot,
     VerificationConfigError,
     VerificationFailure,
@@ -346,6 +347,119 @@ class VisualVerificationTests(unittest.TestCase):
                 self.top_camera(),
                 features=(object(),),
             )
+
+    def test_r7b_path_slot_two_point_equivalence_and_curved_path(self):
+        base = Image.new("RGB", (140, 140), "white")
+        straight = ThroughSlot(
+            start=(-4, 0),
+            end=(4, 0),
+            width=2,
+            z_min=-1,
+            z_max=1,
+        )
+        path_straight = ThroughPathSlot(
+            centerline=((-4, 0), (4, 0)),
+            width=2,
+            z_min=-1,
+            z_max=1,
+        )
+        straight_image = draw_expected_geometry(
+            base,
+            self.top_camera(),
+            features=(straight,),
+        )
+        path_straight_image = draw_expected_geometry(
+            base,
+            self.top_camera(),
+            features=(path_straight,),
+        )
+        self.assertEqual(
+            straight_image.tobytes(),
+            path_straight_image.tobytes(),
+        )
+
+        curved = ThroughPathSlot(
+            centerline=((-4, 0), (0, 3), (4, 0)),
+            width=2,
+            z_min=-1,
+            z_max=1,
+            label="curved",
+        )
+        curved_image = draw_expected_geometry(
+            base,
+            self.top_camera(),
+            features=(curved,),
+        )
+        self.assertNotEqual(curved_image.tobytes(), base.tobytes())
+        self.assertNotEqual(
+            curved_image.tobytes(),
+            straight_image.tobytes(),
+        )
+
+        for centerline in (
+            ((0, 0),),
+            ((0, 0), (0, 0)),
+        ):
+            with self.subTest(centerline=centerline):
+                with self.assertRaises(VerificationConfigError):
+                    ThroughPathSlot(
+                        centerline=centerline,
+                        width=2,
+                        z_min=0,
+                        z_max=1,
+                    )
+
+        with self.assertRaises(VerificationConfigError):
+            ThroughPathSlot(
+                centerline=((0, 0), (1, 1)),
+                width=0,
+                z_min=0,
+                z_max=1,
+            )
+        with self.assertRaises(VerificationConfigError):
+            ThroughPathSlot(
+                centerline=((0, 0), (1, 1)),
+                width=2,
+                z_min=2,
+                z_max=1,
+            )
+
+    def test_r7c_path_slot_is_supported_by_single_view_verification(self):
+        actual = self.write_image(
+            "path-actual.png",
+            "RGB",
+            (100, 100),
+            "white",
+        )
+        goal = self.root / "path-goal.png"
+        overlay = self.root / "path-overlay.png"
+        evidence = verify_visual_view(
+            actual,
+            actual_reference="actual.png",
+            baseline_path=None,
+            normalized_size=(50, 50),
+            changed_pixel_threshold=12,
+            max_mean_difference=6,
+            max_changed_fraction=0.08,
+            diff_path=None,
+            camera=self.top_camera(),
+            features=(
+                ThroughPathSlot(
+                    centerline=((-3, 0), (0, 3), (3, 0)),
+                    width=2,
+                    z_min=-1,
+                    z_max=1,
+                ),
+            ),
+            goal_path=goal,
+            goal_reference="goal.png",
+            overlay_path=overlay,
+            overlay_reference="overlay.png",
+        )
+        self.assertEqual(evidence.baseline_status, "missing")
+        self.assertEqual(evidence.expected_shape_status, "pass")
+        self.assertTrue(goal.is_file())
+        self.assertTrue(overlay.is_file())
 
     def test_r8_goal_and_overlay_preserve_distinct_information(self):
         box = ExpectedBox((-2, -2, -2), (2, 2, 2))
